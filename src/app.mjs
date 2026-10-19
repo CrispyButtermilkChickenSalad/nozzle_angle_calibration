@@ -10,11 +10,10 @@ const outputName = document.querySelector("#output-name");
 let generated = null;
 
 const fields = [
-  "angleStart", "angleEnd", "angleStep",
-  "layerHeightStart", "layerHeightEnd", "layerHeightStep",
-  "lineWidthStart", "lineWidthEnd", "lineWidthStep",
+  "angleDegrees", "layerHeight", "layerCount",
+  "nozzleDiameter",
   "multiplierStart", "multiplierEnd", "multiplierStep",
-  "nozzleDiameter", "filamentDiameter", "beadLength", "angleAxis",
+  "filamentDiameter", "beadLength", "angleAxis",
   "travelFeedrate", "printFeedrate",
 ];
 
@@ -30,31 +29,28 @@ function readConfig() {
 function renderPreview(result) {
   preview.replaceChildren();
   const fragment = document.createDocumentFragment();
-  const lowAngle = result.angles[0];
-  const highAngle = result.angles.at(-1);
+  const angle = result.angle;
   result.cases.forEach((testCase, caseIndex) => {
-    result.angles.forEach((angle) => {
-      const row = document.createElement("div");
-      row.className = "preview-row";
-      const id = String(caseIndex + 1).padStart(3, "0");
-      const marker = document.createElement("span");
-      marker.className = "preview-id";
-      marker.textContent = `${id} H${testCase.height.toFixed(2)} W${testCase.width.toFixed(2)} M${testCase.multiplier.toFixed(2)}`;
-      marker.title = `Row ${id}: layer height ${testCase.height} mm, line width ${testCase.width} mm, extrusion multiplier ${testCase.multiplier}`;
-      const track = document.createElement("span");
-      track.className = "preview-track";
-      const spread = highAngle === lowAngle ? 0 : (angle - lowAngle) / (highAngle - lowAngle);
-      track.style.background = `linear-gradient(90deg, hsl(${151 - spread * 122} 36% 40%), hsl(${151 - spread * 122} 63% 58%))`;
-      track.title = `${angle}° tilt`;
-      const angleLabel = document.createElement("span");
-      angleLabel.className = "preview-angle";
-      angleLabel.textContent = `${angle}°`;
-      row.append(marker, track, angleLabel);
-      fragment.append(row);
-    });
+    const row = document.createElement("div");
+    row.className = "preview-row";
+    const id = String(caseIndex + 1).padStart(3, "0");
+    const marker = document.createElement("span");
+    marker.className = "preview-id";
+    marker.textContent = `${id} M${testCase.multiplier.toFixed(2)} · ${result.layerCount} LAYERS`;
+    marker.title = `Specimen ${id}: ${testCase.height} mm layer height, ${testCase.width} mm line width, ${result.layerCount} stacked layers, extrusion multiplier ${testCase.multiplier}`;
+    const track = document.createElement("span");
+    track.className = "preview-track";
+    const flow = result.cases.length === 1 ? 0 : caseIndex / (result.cases.length - 1);
+    track.style.background = `linear-gradient(90deg, hsl(${151 - flow * 55} 42% 40%), hsl(${151 - flow * 55} 62% 58%))`;
+    track.title = `Multiplier ${testCase.multiplier}`;
+    const angleLabel = document.createElement("span");
+    angleLabel.className = "preview-angle";
+    angleLabel.textContent = `${angle}°`;
+    row.append(marker, track, angleLabel);
+    fragment.append(row);
   });
   preview.append(fragment);
-  rowCount.textContent = `${result.rowCount} ROWS`;
+  rowCount.textContent = `${result.rowCount} SPECIMENS`;
   statusBadge.textContent = "PATTERN READY";
   statusBadge.classList.add("is-ready");
 }
@@ -99,14 +95,16 @@ for (const fieldName of fields) {
     errorMessage.textContent = "";
     try {
       const config = readConfig();
-      const height = Number(config.layerHeightStart);
+      const height = Number(config.layerHeight);
       const nozzleDiameter = Number(config.nozzleDiameter);
-      const angle = Number(config.angleEnd);
+      const angle = Number(config.angleDegrees);
       const minimum = minimumLayerHeight(nozzleDiameter, angle);
-      const status = `At ${angle}° the minimum layer height is ${minimum.toFixed(3)} mm.`;
-      form.elements.namedItem("layerHeightStart").setCustomValidity(height < minimum ? status : "");
+      const reasons = [];
+      if (height < minimum) reasons.push(`At ${angle}° the minimum safe layer height is ${minimum.toFixed(3)} mm.`);
+      if (height > nozzleDiameter) reasons.push("Target layer height cannot exceed nozzle tip diameter.");
+      form.elements.namedItem("layerHeight").setCustomValidity(reasons.join(" "));
     } catch {
-      form.elements.namedItem("layerHeightStart").setCustomValidity("");
+      form.elements.namedItem("layerHeight").setCustomValidity("");
     }
   });
 }

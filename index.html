@@ -22,7 +22,7 @@
         <div>
           <p class="eyebrow">EXPERIMENT GENERATOR <span>01 — 04</span></p>
           <h1>Find your<br><span>angle of attack.</span></h1>
-          <p class="intro-copy">Generate a labeled matrix of single-pass beads to study how nozzle tilt changes the deposited line. Each row varies one angle and records the geometry and flow used to make it.</p>
+          <p class="intro-copy">Set one nozzle tilt and layer height, then compare extrusion flow across labeled specimens. Stack layers to build a taller sample when first-layer variation makes a single bead hard to judge.</p>
         </div>
         <div class="intro-stamp" aria-label="Calibration study, edition 01">
           <span>CALIBRATION</span>
@@ -43,52 +43,34 @@
 
           <form id="calibration-form">
             <fieldset>
-              <legend><span class="legend-number">A</span> Angle sweep <span class="legend-unit">DEGREES FROM NORMAL</span></legend>
-              <div class="field-grid three-up">
-                <label>Start angle
-                  <span class="input-wrap"><input name="angleStart" type="number" min="0" max="89" step="1" value="0" required><span>°</span></span>
+              <legend><span class="legend-number">A</span> Test geometry <span class="legend-unit">SINGLE TARGET / MM</span></legend>
+              <div class="field-grid two-up">
+                <label>Nozzle tilt from vertical
+                  <span class="input-wrap"><input name="angleDegrees" type="number" min="0" max="89" step="any" value="45" required><span>°</span></span>
                 </label>
-                <label>End angle
-                  <span class="input-wrap"><input name="angleEnd" type="number" min="0" max="89" step="1" value="45" required><span>°</span></span>
-                </label>
-                <label>Angle step
-                  <span class="input-wrap"><input name="angleStep" type="number" min="1" max="89" step="1" value="15" required><span>°</span></span>
+                <label>Target layer height
+                  <span class="input-wrap"><input name="layerHeight" type="number" min="0.01" max="10" step="any" value="0.20" required><span>mm</span></span>
                 </label>
               </div>
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">B</span> Layer height <span class="legend-unit">MM / TEST ROWS</span></legend>
+              <legend><span class="legend-number">B</span> Nozzle &amp; layer stack <span class="legend-unit">MM / LAYERS</span></legend>
               <div class="field-grid three-up">
-                <label>From
-                  <span class="input-wrap"><input name="layerHeightStart" type="number" min="0.01" max="10" step="any" value="0.20" required><span>mm</span></span>
+                <label>Nozzle tip diameter
+                  <span class="input-wrap"><input name="nozzleDiameter" type="number" min="0.05" max="5" step="any" value="0.40" required><span>mm</span></span>
                 </label>
-                <label>To
-                  <span class="input-wrap"><input name="layerHeightEnd" type="number" min="0.01" max="10" step="any" value="0.30" required><span>mm</span></span>
+                <label>Layers per specimen
+                  <span class="input-wrap"><input name="layerCount" type="number" min="1" max="20" step="1" value="3" required><span>layers</span></span>
                 </label>
-                <label>Increment
-                  <span class="input-wrap"><input name="layerHeightStep" type="number" min="0.01" max="10" step="any" value="0.10" required><span>mm</span></span>
+                <label>Bead length
+                  <span class="input-wrap"><input name="beadLength" type="number" min="2" max="100" step="1" value="12" required><span>mm</span></span>
                 </label>
               </div>
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">C</span> Line width <span class="legend-unit">MM / TEST ROWS</span></legend>
-              <div class="field-grid three-up">
-                <label>From
-                  <span class="input-wrap"><input name="lineWidthStart" type="number" min="0.01" max="20" step="any" value="0.40" required><span>mm</span></span>
-                </label>
-                <label>To
-                  <span class="input-wrap"><input name="lineWidthEnd" type="number" min="0.01" max="20" step="any" value="0.50" required><span>mm</span></span>
-                </label>
-                <label>Increment
-                  <span class="input-wrap"><input name="lineWidthStep" type="number" min="0.01" max="20" step="any" value="0.10" required><span>mm</span></span>
-                </label>
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend><span class="legend-number">D</span> Extrusion multiplier <span class="legend-unit">FLOW / TEST ROWS</span></legend>
+              <legend><span class="legend-number">C</span> Extrusion multiplier <span class="legend-unit">FLOW / SPECIMENS</span></legend>
               <div class="field-grid three-up">
                 <label>From
                   <span class="input-wrap"><input name="multiplierStart" type="number" min="0.01" max="5" step="any" value="0.90" required><span>×</span></span>
@@ -103,22 +85,22 @@
             </fieldset>
 
             <fieldset class="last-fieldset">
-              <legend><span class="legend-number">E</span> Machine &amp; specimen <span class="legend-unit">MM UNLESS NOTED</span></legend>
-              <div class="field-grid three-up">
-                <label>Nozzle tip diameter
-                  <span class="input-wrap"><input name="nozzleDiameter" type="number" min="0.05" max="5" step="0.01" value="0.40" required><span>mm</span></span>
-                </label>
+              <legend><span class="legend-number">D</span> Machine <span class="legend-unit">MM UNLESS NOTED</span></legend>
+              <div class="field-grid two-up">
                 <label>Filament diameter
                   <span class="input-wrap"><input name="filamentDiameter" type="number" min="0.5" max="5" step="0.01" value="1.75" required><span>mm</span></span>
                 </label>
-                <label>Bead length
-                  <span class="input-wrap"><input name="beadLength" type="number" min="2" max="100" step="1" value="12" required><span>mm</span></span>
+                <label>Rotary axis / rotation about
+                  <span class="input-wrap input-wrap-select">
+                    <select name="angleAxis" aria-describedby="axis-help">
+                      <option value="A" selected>A / X-axis</option>
+                      <option value="B">B / Y-axis</option>
+                      <option value="C">C / Z-axis</option>
+                    </select>
+                  </span>
                 </label>
               </div>
-              <div class="field-grid three-up secondary-fields">
-                <label>Angle axis
-                  <span class="input-wrap input-wrap-select"><input name="angleAxis" type="text" maxlength="1" value="A" pattern="[A-DF-Z]" required aria-describedby="axis-help"></span>
-                </label>
+              <div class="field-grid two-up secondary-fields">
                 <label>Travel feedrate
                   <span class="input-wrap"><input name="travelFeedrate" type="number" min="100" max="20000" step="100" value="6000" required><span>mm/min</span></span>
                 </label>
@@ -126,11 +108,11 @@
                   <span class="input-wrap"><input name="printFeedrate" type="number" min="10" max="10000" step="10" value="1200" required><span>mm/min</span></span>
                 </label>
               </div>
-              <p id="axis-help" class="field-help">The selected rotary axis must be supported and configured by your firmware.</p>
+              <p id="axis-help" class="field-help">Common printer convention: A rotates about X, B about Y, and C about Z. Confirm the selected axis is enabled and measured in degrees by your firmware.</p>
             </fieldset>
 
             <div class="form-footer">
-              <p>Tests are generated as a single layer per row.<br>Machine start-up, homing and heating are not included.</p>
+              <p>Line width always matches nozzle tip diameter.<br>Machine start-up, homing and heating are not included.</p>
               <button class="primary-button" type="submit">
                 <span>Generate pattern</span><span aria-hidden="true">↗</span>
               </button>
@@ -149,8 +131,8 @@
           </div>
           <div class="preview-wrap">
             <div class="preview-toolbar">
-              <span>TOP VIEW <i aria-hidden="true"></i> ROW MATRIX / SCHEMATIC</span>
-              <span id="row-count">— ROWS</span>
+              <span>TOP VIEW <i aria-hidden="true"></i> SPECIMEN PLAN / SCHEMATIC</span>
+              <span id="row-count">— SPECIMENS</span>
             </div>
             <div id="preview" class="preview" aria-label="Generated test layout preview">
               <div class="empty-state">
@@ -159,8 +141,8 @@
               </div>
             </div>
             <div class="preview-legend">
-              <span><i class="legend-swatch angle-low"></i> LOW TILT</span>
-              <span><i class="legend-swatch angle-high"></i> HIGH TILT</span>
+              <span><i class="legend-swatch angle-low"></i> LOW FLOW</span>
+              <span><i class="legend-swatch angle-high"></i> HIGH FLOW</span>
               <span><i class="legend-swatch label-mark"></i> PHYSICAL ID MARKER</span>
             </div>
           </div>
@@ -168,7 +150,7 @@
             <span class="safety-icon" aria-hidden="true">⌖</span>
             <div>
               <strong>Tip clearance is part of the test.</strong>
-              <p>Every height is checked against the lowest point of a tilted, circular nozzle rim before G-code can be generated.</p>
+              <p>The target layer height is checked against the lowest point of a tilted, circular nozzle rim before G-code can be generated.</p>
             </div>
           </div>
           <div class="download-row">
@@ -187,11 +169,11 @@
         <div class="method-label"><span>FIELD NOTE</span><strong>01</strong></div>
         <div class="method-copy">
           <h2>One model. Explicit assumptions.</h2>
-          <p>Angle is measured away from the surface normal (0° is vertical). The nozzle outlet is modeled as a circular rim rotating about its centroid. The rim’s vertical drop is <code>r · sin(θ)</code>, equivalently <code>√(r² − (r · cos(θ))²)</code>; the layer height must meet or exceed that value. This is a conservative exit-face clearance check, not a full nozzle-body or machine collision model.</p>
+          <p>Enter one tilt angle from the surface normal (0° is vertical) and one target layer height. The nozzle outlet is modeled as a circular rim rotating about its centroid. Its vertical drop is <code>r · sin(θ)</code>, equivalently <code>√(r² − (r · cos(θ))²)</code>; the target height must meet or exceed that value. This checks exit-face clearance, not the full nozzle body or machine.</p>
         </div>
         <div class="method-copy area-note">
           <h2>Bead volume approximation</h2>
-          <p>Extrusion uses the capsule-like cross-section <code>A = (w − h)h + π(h/2)²</code>, where <code>w</code> is line width and <code>h</code> is layer height. Widths smaller than height are rejected. Physical markers print the test ID, H (height), W (width), M (multiplier), and A (angle); G-code comments repeat the settings.</p>
+          <p>Line width <code>w</code> is fixed to the nozzle tip diameter; bead area is <code>A = (w − h)h + π(h/2)²</code>. Each specimen prints the requested number of layers at the target height, with one flow multiplier per specimen. Printed markers identify specimen, multiplier, and tilt (T); comments list all settings. Stacking builds up from the nominal first-layer height but does not model a separate first-layer compensation value.</p>
         </div>
       </section>
       <footer class="page-footer">

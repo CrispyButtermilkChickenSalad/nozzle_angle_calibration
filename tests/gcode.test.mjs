@@ -3,15 +3,9 @@ import assert from "node:assert/strict";
 import { generateGcode, layerArea, minimumLayerHeight } from "../src/gcode.mjs";
 
 const defaults = {
-  angleStart: 0,
-  angleEnd: 45,
-  angleStep: 15,
-  layerHeightStart: 0.2,
-  layerHeightEnd: 0.3,
-  layerHeightStep: 0.1,
-  lineWidthStart: 0.4,
-  lineWidthEnd: 0.5,
-  lineWidthStep: 0.1,
+  angleDegrees: 45,
+  layerHeight: 0.2,
+  layerCount: 3,
   multiplierStart: 0.9,
   multiplierEnd: 1.1,
   multiplierStep: 0.2,
@@ -23,11 +17,9 @@ const defaults = {
   printFeedrate: 1200,
 };
 
-test("calculates the capsule bead area from layer height and width", () => {
-  const height = 0.2;
-  const width = 0.4;
-  const expected = (width - height) * height + Math.PI * (height / 2) ** 2;
-  assert.ok(Math.abs(layerArea(height, width) - expected) < 1e-12);
+test("calculates the capsule bead area from target height and nozzle diameter", () => {
+  const expected = (0.4 - 0.2) * 0.2 + Math.PI * (0.2 / 2) ** 2;
+  assert.ok(Math.abs(layerArea(0.2, 0.4) - expected) < 1e-12);
 });
 
 test("projects the tilted circular rim using the Pythagorean relation", () => {
@@ -36,48 +28,46 @@ test("projects the tilted circular rim using the Pythagorean relation", () => {
   assert.ok(Math.abs(minimumLayerHeight(0.4, 90 - 1e-8) - 0.2) < 1e-8);
 });
 
-test("creates deterministic, labeled G-code for every parameter combination and angle", () => {
+test("generates one-angle, one-height specimens with fixed nozzle-width beads", () => {
   const result = generateGcode(defaults);
-  assert.equal(result.caseCount, 8);
-  assert.equal(result.rowCount, 32);
+  assert.equal(result.caseCount, 2);
+  assert.equal(result.rowCount, 2);
+  assert.equal(result.totalLayerCount, 6);
+  assert.equal(result.angle, 45);
+  assert.equal(result.layerCount, 3);
+  assert.equal(result.cases[0].height, defaults.layerHeight);
+  assert.equal(result.cases[0].width, defaults.nozzleDiameter);
   assert.equal(result.text, generateGcode(defaults).text);
-  assert.match(result.text, /ROW 001 \| angle 0 deg \| layer height 0\.2 mm \| line width 0\.4 mm \| extrusion multiplier 0\.9/);
+  assert.match(result.text, /SPECIMEN 001 \| angle 45 deg from normal \| layer height 0\.2 mm \| line width 0\.4 mm \(nozzle diameter\) \| layers 3 \| extrusion multiplier 0\.9/);
+  assert.match(result.text, /; Rotary axis: A \(rotation about X\)/);
   assert.match(result.text, /G1 A45/);
-  assert.match(result.text, /print physical row and angle markers upright/);
+  assert.match(result.text, /tilt is marked as T followed by degrees/);
+  assert.match(result.text, /; layer 3\/3, angle 45 deg/);
   assert.match(result.text, /Calculated min layer height at this angle: 0\.141421 mm/);
 });
 
-test("rejects a layer height that would collide with the tilted rim", () => {
+test("maps the standard B and C rotary axes to Y and Z", () => {
+  assert.match(generateGcode({ ...defaults, angleAxis: "B" }).text, /; Rotary axis: B \(rotation about Y\)/);
+  assert.match(generateGcode({ ...defaults, angleAxis: "C" }).text, /; Rotary axis: C \(rotation about Z\)/);
+});
+
+test("rejects unsafe heights and heights wider than the fixed nozzle-sized bead", () => {
   assert.throws(
-    () => generateGcode({ ...defaults, layerHeightStart: 0.1, layerHeightEnd: 0.1, lineWidthStart: 0.4, lineWidthEnd: 0.4 }),
+    () => generateGcode({ ...defaults, layerHeight: 0.1 }),
     /collides at 45° tilt: minimum safe height is 0\.141421 mm/,
   );
-});
-
-test("preserves sub-millimeter sweep precision in comments and Z moves", () => {
-  const result = generateGcode({
-    ...defaults,
-    angleEnd: 0,
-    layerHeightStart: 0.205,
-    layerHeightEnd: 0.205,
-    lineWidthStart: 0.405,
-    lineWidthEnd: 0.405,
-    multiplierStart: 0.95,
-    multiplierEnd: 0.95,
-  });
-  assert.match(result.text, /layer height 0\.205 mm \| line width 0\.405 mm \| extrusion multiplier 0\.95/);
-  assert.match(result.text, /G0 Z0\.205/);
-});
-
-test("rejects invalid widths, rotary axes, and row explosions", () => {
   assert.throws(
-    () => generateGcode({ ...defaults, layerHeightStart: 0.3, layerHeightEnd: 0.3, lineWidthStart: 0.2, lineWidthEnd: 0.2 }),
-    /Line width .* must be at least the layer height/,
+    () => generateGcode({ ...defaults, layerHeight: 0.5 }),
+    /Nozzle tip diameter \(0\.4 mm\) must be at least the layer height \(0\.5 mm\)/,
   );
-  assert.throws(() => generateGcode({ ...defaults, angleAxis: "E" }), /Angle axis must be one rotary axis letter/);
-  assert.throws(() => generateGcode({ ...defaults, angleAxis: "," }), /Angle axis must be one rotary axis letter/);
+});
+
+test("rejects invalid layer counts, axes, and oversized stacks", () => {
+  assert.throws(() => generateGcode({ ...defaults, layerCount: 1.5 }), /whole number between 1 and 20/);
+  assert.throws(() => generateGcode({ ...defaults, angleAxis: "E" }), /Choose A \(rotation about X\)/);
+  assert.throws(() => generateGcode({ ...defaults, angleAxis: "," }), /Choose A \(rotation about X\)/);
   assert.throws(
-    () => generateGcode({ ...defaults, angleEnd: 89, angleStep: 0.1 }),
-    /range has more than 100 values/,
+    () => generateGcode({ ...defaults, layerCount: 6, multiplierStart: 0.01, multiplierEnd: 1, multiplierStep: 0.01 }),
+    /creates 600 printed layers/,
   );
 });
