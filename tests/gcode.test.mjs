@@ -73,6 +73,7 @@ test("generates a deterministic flow-by-height matrix over one solid base", () =
   assert.equal(result.preview.layerCount, 3);
   assert.equal(result.preview.angleAxis, "A");
   assert.equal(result.preview.firstLayerHeight, defaults.firstLayerHeight);
+  assert.equal(result.preview.tagHeight, defaults.layerHeightStart);
   assert.equal(result.text, generateGcode(config).text);
   assert.match(result.text, /Matrix: 5 flow rows × 3 layer-height columns; 15 test lines; 3 layers per cell/);
   assert.match(result.text, /Flow labels are percentages: 90% to 110% in 5% increments/);

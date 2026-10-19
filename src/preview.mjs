@@ -96,15 +96,16 @@ export function createScenePreview(canvas) {
     context.stroke();
 
     const faces = [];
-    const addPolygon = (points, color) => {
+    const baseFaces = [];
+    const addPolygon = (points, color, target = faces) => {
       const projected = points.map(([x, y, z]) => project(x, y, z));
-      faces.push({
+      target.push({
         points: projected,
         depth: projected.reduce((sum, point) => sum + point.depth, 0) / projected.length,
         color,
       });
     };
-    const addBox = (x0, x1, y0, y1, z0, z1, colors) => {
+    const addBox = (x0, x1, y0, y1, z0, z1, colors, target = faces) => {
       if (x1 <= x0 || y1 <= y0 || z1 <= z0) return;
       const vertices = [
         [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
@@ -117,7 +118,7 @@ export function createScenePreview(canvas) {
         [[3, 0, 4, 7], colors.sides[3]],
         [[4, 5, 6, 7], colors.top],
       ];
-      for (const [indices, color] of boxFaces) addPolygon(indices.map((index) => vertices[index]), color);
+      for (const [indices, color] of boxFaces) addPolygon(indices.map((index) => vertices[index]), color, target);
     };
     const addSegment = (x1, y1, x2, y2, z0, z1, width, colors) => {
       const dx = x2 - x1;
@@ -156,6 +157,7 @@ export function createScenePreview(canvas) {
       0,
       layout.firstLayerHeight,
       baseColors,
+      baseFaces,
     );
 
     for (const tag of layout.tags) {
@@ -201,15 +203,19 @@ export function createScenePreview(canvas) {
       }
     });
 
+    const drawFaces = (items) => {
+      for (const face of items) {
+        drawPolygon(context, face.points);
+        context.fillStyle = face.color;
+        context.fill();
+        context.strokeStyle = "rgba(38, 68, 53, .18)";
+        context.lineWidth = 0.45;
+        context.stroke();
+      }
+    };
+    drawFaces(baseFaces);
     faces.sort((first, second) => first.depth - second.depth);
-    for (const face of faces) {
-      drawPolygon(context, face.points);
-      context.fillStyle = face.color;
-      context.fill();
-      context.strokeStyle = "rgba(38, 68, 53, .18)";
-      context.lineWidth = 0.45;
-      context.stroke();
-    }
+    drawFaces(faces);
 
     context.textAlign = "left";
     context.font = "10px Segoe UI, sans-serif";

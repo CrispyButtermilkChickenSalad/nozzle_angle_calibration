@@ -497,6 +497,7 @@ export function generateGcode(config) {
       baseLineWidth: flowWidth,
       beadWidth: nozzleDiameter,
       firstLayerHeight,
+      tagHeight,
       layerHeight: heights[0],
       layerCount,
       tags: absoluteTags,
