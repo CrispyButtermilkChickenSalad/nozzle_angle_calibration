@@ -4,30 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#f2f4f6">
-    <title>Nozzle Angle Calibration</title>
+    <title>Nozzle angle calibration test</title>
     <link rel="stylesheet" href="styles.css">
     <script type="module" src="src/app.mjs"></script>
   </head>
   <body>
     <main class="page-shell">
-      <header class="topbar">
-        <a class="brand" href="./" aria-label="Nozzle angle calibration home">
-          <span class="brand-mark" aria-hidden="true">∠</span>
-          <span>FIELDNOTES <span class="brand-divider">/</span> LAB 04</span>
-        </a>
-        <span class="topbar-note">NON-PLANAR PRINT RESEARCH</span>
-      </header>
-
       <section class="intro">
         <div>
-          <p class="eyebrow">EXPERIMENT GENERATOR <span>01 — 04</span></p>
-          <h1>Find your<br><span>angle of attack.</span></h1>
-          <p class="intro-copy">Set one nozzle tilt and layer height, then compare extrusion flow across labeled specimens. Stack layers to build a taller sample when first-layer variation makes a single bead hard to judge.</p>
-        </div>
-        <div class="intro-stamp" aria-label="Calibration study, edition 01">
-          <span>CALIBRATION</span>
-          <strong>01</strong>
-          <span>OPEN STUDY</span>
+          <h1>Nozzle angle<br><span>calibration test.</span></h1>
+          <p class="intro-copy">Set one nozzle tilt, then generate a test matrix comparing flow percentages and layer heights. Each flow value becomes a row; each layer height becomes a column.</p>
         </div>
       </section>
 
@@ -36,26 +22,23 @@
           <div class="panel-heading">
             <div>
               <p class="eyebrow">01 / DEFINE THE TEST</p>
-              <h2 id="setup-heading">Pattern parameters</h2>
+              <h2 id="setup-heading">Test matrix parameters</h2>
             </div>
             <span class="panel-index">SETUP</span>
           </div>
 
           <form id="calibration-form">
             <fieldset>
-              <legend><span class="legend-number">A</span> Test geometry <span class="legend-unit">SINGLE TARGET / MM</span></legend>
-              <div class="field-grid two-up">
+              <legend><span class="legend-number">1</span> Nozzle tilt <span class="legend-unit">SINGLE TARGET / DEGREES</span></legend>
+              <div class="field-grid">
                 <label>Nozzle tilt from vertical
                   <span class="input-wrap"><input name="angleDegrees" type="number" min="0" max="89" step="any" value="45" required><span>°</span></span>
-                </label>
-                <label>Target layer height
-                  <span class="input-wrap"><input name="layerHeight" type="number" min="0.01" max="10" step="any" value="0.20" required><span>mm</span></span>
                 </label>
               </div>
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">B</span> Nozzle &amp; layer stack <span class="legend-unit">MM / LAYERS</span></legend>
+              <legend><span class="legend-number">2</span> Nozzle &amp; layer stack <span class="legend-unit">MM / LAYERS</span></legend>
               <div class="field-grid three-up">
                 <label>Nozzle tip diameter
                   <span class="input-wrap"><input name="nozzleDiameter" type="number" min="0.05" max="5" step="any" value="0.40" required><span>mm</span></span>
@@ -70,23 +53,57 @@
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">C</span> Extrusion multiplier <span class="legend-unit">FLOW / SPECIMENS</span></legend>
+              <legend><span class="legend-number">3</span> Extrusion calibration <span class="legend-unit">FLOW / PERCENT</span></legend>
               <div class="field-grid three-up">
-                <label>From
-                  <span class="input-wrap"><input name="multiplierStart" type="number" min="0.01" max="5" step="any" value="0.90" required><span>×</span></span>
+                <label>Minimum flow
+                  <span class="input-wrap"><input name="flowStartPercent" type="number" min="1" max="500" step="any" value="90" required><span>%</span></span>
                 </label>
-                <label>To
-                  <span class="input-wrap"><input name="multiplierEnd" type="number" min="0.01" max="5" step="any" value="1.10" required><span>×</span></span>
+                <label>Maximum flow
+                  <span class="input-wrap"><input name="flowEndPercent" type="number" min="1" max="500" step="any" value="110" required><span>%</span></span>
                 </label>
-                <label>Increment
-                  <span class="input-wrap"><input name="multiplierStep" type="number" min="0.01" max="5" step="any" value="0.20" required><span>×</span></span>
+                <label>Flow increment
+                  <span class="input-wrap"><input name="flowStepPercent" type="number" min="0.01" max="499" step="any" value="5" required><span>%</span></span>
                 </label>
               </div>
             </fieldset>
 
+            <fieldset>
+              <legend><span class="legend-number">4</span> Layer height calibration <span class="legend-unit">MM / COLUMNS</span></legend>
+              <div class="field-grid three-up">
+                <label>Minimum layer height
+                  <span class="input-wrap"><input name="layerHeightStart" type="number" min="0.01" max="10" step="any" value="0.15" required><span>mm</span></span>
+                </label>
+                <label>Maximum layer height
+                  <span class="input-wrap"><input name="layerHeightEnd" type="number" min="0.01" max="10" step="any" value="0.25" required><span>mm</span></span>
+                </label>
+                <label>Height increment
+                  <span class="input-wrap"><input name="layerHeightStep" type="number" min="0.01" max="10" step="any" value="0.05" required><span>mm</span></span>
+                </label>
+              </div>
+              <p id="height-clearance-help" class="field-help">Minimum safe height at this angle: calculated from the nozzle-tip collision model.</p>
+            </fieldset>
+
             <fieldset class="last-fieldset">
-              <legend><span class="legend-number">D</span> Machine <span class="legend-unit">MM UNLESS NOTED</span></legend>
+              <legend><span class="legend-number">5</span> Printer &amp; bed <span class="legend-unit">MM UNLESS NOTED</span></legend>
               <div class="field-grid two-up">
+                <label>Firmware
+                  <span class="input-wrap input-wrap-select">
+                    <select name="firmware">
+                      <option value="klipper" selected>Klipper</option>
+                      <option value="marlin">Marlin</option>
+                      <option value="reprap">RepRapFirmware</option>
+                      <option value="generic">Generic / compatible</option>
+                    </select>
+                  </span>
+                </label>
+                <label>Bed shape
+                  <span class="input-wrap input-wrap-select">
+                    <select name="bedShape">
+                      <option value="rectangular" selected>Rectangular</option>
+                      <option value="circular">Circular</option>
+                    </select>
+                  </span>
+                </label>
                 <label>Filament diameter
                   <span class="input-wrap"><input name="filamentDiameter" type="number" min="0.5" max="5" step="0.01" value="1.75" required><span>mm</span></span>
                 </label>
@@ -100,21 +117,146 @@
                   </span>
                 </label>
               </div>
+              <div class="field-grid three-up secondary-fields">
+                <label>Bed size X / diameter
+                  <span class="input-wrap"><input name="bedSizeX" type="number" min="50" max="2000" step="1" value="220" required><span>mm</span></span>
+                </label>
+                <label>Bed size Y
+                  <span class="input-wrap"><input name="bedSizeY" type="number" min="50" max="2000" step="1" value="220" required><span>mm</span></span>
+                </label>
+                <label class="check-label">
+                  <input name="originAtCenter" type="checkbox">
+                  <span>Machine origin at bed center</span>
+                </label>
+              </div>
               <div class="field-grid two-up secondary-fields">
+                <label>Bed center X <span class="optional-label">OPTIONAL</span>
+                  <span class="input-wrap"><input name="bedCenterX" type="number" step="any" placeholder="Auto from bed size" aria-describedby="bed-center-help"></span>
+                </label>
+                <label>Bed center Y <span class="optional-label">OPTIONAL</span>
+                  <span class="input-wrap"><input name="bedCenterY" type="number" step="any" placeholder="Auto from bed size" aria-describedby="bed-center-help"></span>
+                </label>
+              </div>
+              <div class="field-grid three-up secondary-fields">
+                <label>Extruder name <span class="optional-label">KLIPPER / OPTIONAL</span>
+                  <span class="input-wrap"><input name="extruderName" type="text" maxlength="64" placeholder="extruder"></span>
+                </label>
+                <label>Tool index <span class="optional-label">MARLIN / RRF</span>
+                  <span class="input-wrap"><input name="toolIndex" type="number" min="0" max="15" step="1" value="0" required></span>
+                </label>
                 <label>Travel feedrate
                   <span class="input-wrap"><input name="travelFeedrate" type="number" min="100" max="20000" step="100" value="6000" required><span>mm/min</span></span>
                 </label>
-                <label>Print feedrate
-                  <span class="input-wrap"><input name="printFeedrate" type="number" min="10" max="10000" step="10" value="1200" required><span>mm/min</span></span>
-                </label>
               </div>
+              <p id="bed-center-help" class="field-help">Pattern is centered on the bed center. Leave center coordinates blank to calculate them from bed size and origin mode. Circular beds use bed size X as the diameter.</p>
               <p id="axis-help" class="field-help">Common printer convention: A rotates about X, B about Y, and C about Z. Confirm the selected axis is enabled and measured in degrees by your firmware.</p>
             </fieldset>
 
+            <fieldset>
+              <legend><span class="legend-number">6</span> Retraction &amp; Z-hop <span class="legend-unit">MM / MM/S</span></legend>
+              <div class="field-grid three-up">
+                <label>Retract distance
+                  <span class="input-wrap"><input name="retractDistance" type="number" min="0" max="20" step="any" value="0.8" required><span>mm</span></span>
+                </label>
+                <label>Retract speed
+                  <span class="input-wrap"><input name="retractSpeed" type="number" min="1" max="100" step="any" value="35" required><span>mm/s</span></span>
+                </label>
+                <label>Unretract speed
+                  <span class="input-wrap"><input name="unretractSpeed" type="number" min="1" max="100" step="any" value="30" required><span>mm/s</span></span>
+                </label>
+              </div>
+              <div class="field-grid two-up secondary-fields">
+                <label>Z-hop height
+                  <span class="input-wrap"><input name="zHopHeight" type="number" min="0" max="20" step="any" value="0.4" required><span>mm</span></span>
+                </label>
+                <label class="check-label">
+                  <input name="firmwareRetraction" type="checkbox">
+                  <span>Use firmware retraction (G10 / G11)</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="legend-number">7</span> First layer &amp; matrix base <span class="legend-unit">MM / MM/S</span></legend>
+              <div class="field-grid three-up">
+                <label>First layer height
+                  <span class="input-wrap"><input name="firstLayerHeight" type="number" min="0.01" max="10" step="any" value="0.24" required><span>mm</span></span>
+                </label>
+                <label>First layer speed
+                  <span class="input-wrap"><input name="firstLayerSpeed" type="number" min="1" max="500" step="any" value="20" required><span>mm/s</span></span>
+                </label>
+                <label>First layer fan
+                  <span class="input-wrap"><input name="firstLayerFan" type="number" min="0" max="100" step="1" value="0" required><span>%</span></span>
+                </label>
+              </div>
+              <div class="field-grid two-up secondary-fields">
+                <label>Matrix base line width
+                  <span class="input-wrap"><input name="baseLineWidthPercent" type="number" min="100" max="300" step="1" value="150" required><span>% nozzle</span></span>
+                </label>
+              </div>
+              <p class="field-help">A single solid base layer under the matrix connects all labels and test lines. No individual skirts are printed.</p>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="legend-number">8</span> Print settings <span class="legend-unit">MM/S / °C</span></legend>
+              <div class="field-grid three-up">
+                <label>Print speed
+                  <span class="input-wrap"><input name="printSpeed" type="number" min="1" max="500" step="any" value="60" required><span>mm/s</span></span>
+                </label>
+                <label>Acceleration
+                  <span class="input-wrap"><input name="acceleration" type="number" min="0" max="50000" step="100" value="0" required><span>mm/s²</span></span>
+                </label>
+                <label>Fan speed
+                  <span class="input-wrap"><input name="fanSpeed" type="number" min="0" max="100" step="1" value="50" required><span>%</span></span>
+                </label>
+              </div>
+              <div class="field-grid two-up secondary-fields">
+                <label>Hotend temperature
+                  <span class="input-wrap"><input name="hotendTemperature" type="number" min="0" max="350" step="1" value="210" required><span>°C</span></span>
+                </label>
+                <label>Bed temperature
+                  <span class="input-wrap"><input name="bedTemperature" type="number" min="0" max="150" step="1" value="60" required><span>°C</span></span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="legend-number">9</span> Start / end G-code <span class="legend-unit">OPTIONAL OVERRIDES</span></legend>
+              <div class="field-grid three-up">
+                <label class="check-label">
+                  <input name="homeAxes" type="checkbox" checked>
+                  <span>Add homing (G28)</span>
+                </label>
+                <label class="check-label">
+                  <input name="heatBed" type="checkbox" checked>
+                  <span>Add bed heat / wait</span>
+                </label>
+                <label class="check-label">
+                  <input name="heatHotend" type="checkbox" checked>
+                  <span>Add hotend heat / wait</span>
+                </label>
+              </div>
+              <label class="check-label custom-code-toggle">
+                <input name="useCustomStartGcode" type="checkbox">
+                <span>Append custom start G-code</span>
+              </label>
+              <label class="textarea-label" for="custom-start-gcode">Custom start G-code
+                <textarea id="custom-start-gcode" name="customStartGcode" rows="5" placeholder="Optional firmware macros or printer-specific setup"></textarea>
+              </label>
+              <label class="check-label custom-code-toggle">
+                <input name="useCustomEndGcode" type="checkbox">
+                <span>Append custom end G-code</span>
+              </label>
+              <label class="textarea-label" for="custom-end-gcode">Custom end G-code
+                <textarea id="custom-end-gcode" name="customEndGcode" rows="5" placeholder="Optional park, cooldown, or printer-specific shutdown"></textarea>
+              </label>
+              <p class="field-help">Custom blocks are emitted only when enabled. Tokens: <code>[BED_TEMP]</code>, <code>[HOTEND_TEMP]</code>, <code>[TOOL_INDEX]</code>, <code>[EXTRUDER_NAME]</code>. Review all commands before printing.</p>
+            </fieldset>
+
             <div class="form-footer">
-              <p>Line width always matches nozzle tip diameter.<br>Machine start-up, homing and heating are not included.</p>
+              <p>Line width is fixed to nozzle tip diameter.<br>Review generated start, end, and motion commands before printing.</p>
               <button class="primary-button" type="submit">
-                <span>Generate pattern</span><span aria-hidden="true">↗</span>
+                <span>Generate matrix</span><span aria-hidden="true">↗</span>
               </button>
             </div>
             <p id="form-error" class="error-message" role="alert" hidden></p>
@@ -125,61 +267,51 @@
           <div class="panel-heading">
             <div>
               <p class="eyebrow">02 / REVIEW THE PATTERN</p>
-              <h2 id="preview-heading">Test layout</h2>
+              <h2 id="preview-heading">3D G-code preview</h2>
             </div>
             <span id="status-badge" class="status-badge">READY</span>
           </div>
           <div class="preview-wrap">
             <div class="preview-toolbar">
-              <span>TOP VIEW <i aria-hidden="true"></i> SPECIMEN PLAN / SCHEMATIC</span>
-              <span id="row-count">— SPECIMENS</span>
+              <span>3D VIEW <i aria-hidden="true"></i> G-CODE TOOLPATH APPROXIMATION</span>
+              <span id="row-count">— MATRIX</span>
             </div>
-            <div id="preview" class="preview" aria-label="Generated test layout preview">
-              <div class="empty-state">
-                <span class="empty-icon" aria-hidden="true">⌁</span>
-                <span>Set your variables<br>and generate a pattern.</span>
-              </div>
+            <div id="preview" class="preview">
+              <canvas id="preview-scene" aria-label="Interactive three-dimensional approximation of the generated calibration pattern" aria-describedby="preview-help" tabindex="0">
+                Generate a pattern to preview its three-dimensional toolpath.
+              </canvas>
             </div>
+            <p id="preview-help" class="preview-help">Generate a pattern to preview it. Drag to orbit; use the mouse wheel to zoom, or arrow keys and +/-.</p>
             <div class="preview-legend">
-              <span><i class="legend-swatch angle-low"></i> LOW FLOW</span>
-              <span><i class="legend-swatch angle-high"></i> HIGH FLOW</span>
-              <span><i class="legend-swatch label-mark"></i> PHYSICAL ID MARKER</span>
+              <span><i class="legend-swatch bead-swatch"></i> TEST LINES</span>
+              <span><i class="legend-swatch base-swatch"></i> SOLID FIRST LAYER</span>
+              <span><i class="legend-swatch tag-swatch"></i> MATRIX LABELS</span>
             </div>
           </div>
+          <p id="layout-summary" class="layout-summary">BED FIT IS CHECKED WHEN YOU GENERATE THE PATTERN.</p>
           <div class="safety-card">
             <span class="safety-icon" aria-hidden="true">⌖</span>
             <div>
-              <strong>Tip clearance is part of the test.</strong>
-              <p>The target layer height is checked against the lowest point of a tilted, circular nozzle rim before G-code can be generated.</p>
+              <strong>Collision-safe layer-height range.</strong>
+              <p>Every matrix column is checked against the minimum nozzle-rim clearance for the selected tilt. The solid base is printed flat beneath all labels and test lines.</p>
             </div>
           </div>
           <div class="download-row">
             <div>
               <span class="download-label">OUTPUT FILE</span>
-              <strong id="output-name">angle-calibration.gcode</strong>
+              <strong id="output-name">angle-calibration-matrix.gcode</strong>
             </div>
             <button id="download-button" class="download-button" type="button" disabled>
               <span aria-hidden="true">↓</span> Download G-code
             </button>
           </div>
+          <details class="gcode-preview">
+            <summary>Review generated G-code</summary>
+            <pre id="preview-code">Generate a pattern to inspect its G-code.</pre>
+          </details>
         </section>
       </div>
 
-      <section class="method-note" aria-label="Geometry and safety assumptions">
-        <div class="method-label"><span>FIELD NOTE</span><strong>01</strong></div>
-        <div class="method-copy">
-          <h2>One model. Explicit assumptions.</h2>
-          <p>Enter one tilt angle from the surface normal (0° is vertical) and one target layer height. The nozzle outlet is modeled as a circular rim rotating about its centroid. Its vertical drop is <code>r · sin(θ)</code>, equivalently <code>√(r² − (r · cos(θ))²)</code>; the target height must meet or exceed that value. This checks exit-face clearance, not the full nozzle body or machine.</p>
-        </div>
-        <div class="method-copy area-note">
-          <h2>Bead volume approximation</h2>
-          <p>Line width <code>w</code> is fixed to the nozzle tip diameter; bead area is <code>A = (w − h)h + π(h/2)²</code>. Each specimen prints the requested number of layers at the target height, with one flow multiplier per specimen. Printed markers identify specimen, multiplier, and tilt (T); comments list all settings. Stacking builds up from the nominal first-layer height but does not model a separate first-layer compensation value.</p>
-        </div>
-      </section>
-      <footer class="page-footer">
-        <span>NOZZLE ANGLE CALIBRATION <span class="footer-dot">●</span> RESEARCH TOOL</span>
-        <span>GENERATED MOTION REQUIRES A MACHINE WITH A CONFIGURED ROTARY AXIS</span>
-      </footer>
     </main>
   </body>
 </html>
