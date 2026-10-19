@@ -3,7 +3,7 @@ const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, v
 export function createScenePreview(canvas) {
   const context = canvas.getContext("2d");
   let layout = null;
-  let yaw = 0.28;
+  let yaw = 0;
   let pitch = 0.58;
   let zoom = 1;
   let drag = null;
@@ -16,18 +16,23 @@ export function createScenePreview(canvas) {
     canvas.height = Math.round(bounds.height * ratio);
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, bounds.width, bounds.height);
-    context.fillStyle = "#fbfcfa";
+    const darkTheme = document.body.dataset.theme === "dark";
+    const palette = darkTheme
+      ? { background: "#211a28", plane: "#2b2333", grid: "#493b55", text: "#d0c3da" }
+      : { background: "#fbf9fd", plane: "#f2edf7", grid: "#e3d9eb", text: "#675b70" };
+    context.fillStyle = palette.background;
     context.fillRect(0, 0, bounds.width, bounds.height);
 
     if (!layout) {
-      context.fillStyle = "#9aa69d";
+      context.fillStyle = palette.text;
       context.font = "12px Segoe UI, sans-serif";
       context.textAlign = "center";
       context.fillText("Generate a pattern to inspect the 3D toolpath", bounds.width / 2, bounds.height / 2);
       return;
     }
 
-    const { bounds: modelBounds } = layout;
+    const modelBounds = layout.layoutBounds ?? layout.bounds;
+    const baseBounds = layout.bounds;
     const centerX = (modelBounds.minX + modelBounds.maxX) / 2;
     const centerY = (modelBounds.minY + modelBounds.maxY) / 2;
     const topZ = layout.firstLayerHeight + layout.layerCount * Math.max(...layout.columns.map((column) => column.height));
@@ -38,11 +43,11 @@ export function createScenePreview(canvas) {
     const rawProject = (x, y, z) => {
       const relativeX = x - centerX;
       const relativeY = y - centerY;
-      const horizontal = relativeX * cosYaw - relativeY * sinYaw;
-      const depth = relativeX * sinYaw + relativeY * cosYaw;
+      const horizontal = relativeX * cosYaw + relativeY * sinYaw;
+      const depth = -relativeX * sinYaw + relativeY * cosYaw;
       return {
         x: horizontal,
-        y: depth * sinPitch - z * cosPitch,
+        y: -depth * sinPitch - z * cosPitch,
         depth: depth * cosPitch + z * sinPitch,
       };
     };
@@ -75,7 +80,7 @@ export function createScenePreview(canvas) {
     const gridX1 = modelBounds.maxX + 4;
     const gridY0 = modelBounds.minY - 4;
     const gridY1 = modelBounds.maxY + 4;
-    context.fillStyle = "#f1f4f0";
+    context.fillStyle = palette.plane;
     drawPolygon(context, [
       project(gridX0, gridY0, 0),
       project(gridX1, gridY0, 0),
@@ -83,7 +88,7 @@ export function createScenePreview(canvas) {
       project(gridX0, gridY1, 0),
     ]);
     context.fill();
-    context.strokeStyle = "#e0e7e0";
+    context.strokeStyle = palette.grid;
     context.lineWidth = 0.7;
     const gridStep = Math.max(2, Math.ceil(Math.max(gridX1 - gridX0, gridY1 - gridY0) / 24 / 2) * 2);
     context.beginPath();
@@ -150,20 +155,37 @@ export function createScenePreview(canvas) {
       sides: ["#9c5338", "#ab5d3e", "#884831", "#a4593c"],
     };
     addBox(
-      modelBounds.minX,
-      modelBounds.maxX,
-      modelBounds.minY,
-      modelBounds.maxY,
+      baseBounds.minX,
+      baseBounds.maxX,
+      baseBounds.minY,
+      baseBounds.maxY,
       0,
       layout.firstLayerHeight,
       baseColors,
       baseFaces,
     );
 
+    if (layout.purge) {
+      const colors = {
+        top: "#e3bd32",
+        sides: ["#aa8d20", "#c09f25", "#927819", "#b39522"],
+      };
+      addSegment(
+        layout.purge.xStart,
+        layout.purge.y,
+        layout.purge.xEnd,
+        layout.purge.y,
+        0,
+        layout.firstLayerHeight,
+        layout.beadWidth,
+        colors,
+      );
+    }
+
     for (const tag of layout.tags) {
       const colors = {
-        top: "#466f59",
-        sides: ["#355542", "#3d634c", "#2d4839", "#3d6049"],
+        top: "#76558f",
+        sides: ["#5a416d", "#684b7d", "#503960", "#654879"],
       };
       for (const path of tag.paths) {
         addSegment(
@@ -187,18 +209,21 @@ export function createScenePreview(canvas) {
         sides: [`hsl(${hue} 65% 37%)`, `hsl(${hue} 58% 42%)`, `hsl(${hue} 62% 33%)`, `hsl(${hue} 55% 39%)`],
       };
       for (const column of layout.columns) {
-        for (let layer = 1; layer <= layout.layerCount; layer += 1) {
-          const z0 = layout.firstLayerHeight + (layer - 1) * column.height;
-          const z1 = layout.firstLayerHeight + layer * column.height;
-          addBox(
-            column.xStart,
-            column.xEnd,
-            row.y - layout.beadWidth / 2,
-            row.y + layout.beadWidth / 2,
-            z0,
-            z1,
-            beadColors,
-          );
+        for (let wallIndex = 0; wallIndex < layout.wallCount; wallIndex += 1) {
+          const wallY = row.y + (wallIndex - (layout.wallCount - 1) / 2) * column.wallSpacing;
+          for (let layer = 1; layer <= layout.layerCount; layer += 1) {
+            const z0 = layout.firstLayerHeight + (layer - 1) * column.height;
+            const z1 = layout.firstLayerHeight + layer * column.height;
+            addBox(
+              column.xStart,
+              column.xEnd,
+              wallY - layout.beadWidth / 2,
+              wallY + layout.beadWidth / 2,
+              z0,
+              z1,
+              beadColors,
+            );
+          }
         }
       }
     });
@@ -219,18 +244,20 @@ export function createScenePreview(canvas) {
 
     context.textAlign = "left";
     context.font = "10px Segoe UI, sans-serif";
-    context.fillStyle = "#5f6e63";
+    context.fillStyle = palette.text;
     context.fillText(
       `${layout.layerCount} LAYERS · ${topZ.toFixed(2)} MM TOTAL HEIGHT · ANGLE ${layout.angle}°`,
       11,
       bounds.height - 10,
     );
+    drawBedAxes(context, bounds, yaw, pitch);
     drawNozzleIndicator(context, bounds, layout);
   }
 
   function drawNozzleIndicator(context, bounds, layout) {
     const theta = layout.angle * Math.PI / 180;
     const axisSign = layout.angleAxis === "B" ? -1 : 1;
+    const darkTheme = document.body.dataset.theme === "dark";
     const tip = { x: bounds.width - 45, y: 66 };
     const direction = { x: Math.sin(theta) * axisSign, y: -Math.cos(theta) };
     const perpendicular = { x: Math.cos(theta), y: Math.sin(theta) * axisSign };
@@ -240,12 +267,12 @@ export function createScenePreview(canvas) {
     });
 
     context.save();
-    context.fillStyle = "rgba(251, 252, 250, .9)";
+    context.fillStyle = darkTheme ? "rgba(33, 26, 40, .96)" : "rgba(251, 249, 253, .92)";
     context.fillRect(bounds.width - 90, 8, 82, 82);
-    context.strokeStyle = "#b9c6bb";
+    context.strokeStyle = darkTheme ? "#655273" : "#cbbdda";
     context.lineWidth = 0.8;
     context.strokeRect(bounds.width - 90, 8, 82, 82);
-    context.fillStyle = "#66736a";
+    context.fillStyle = darkTheme ? "#e0d3e9" : "#675b70";
     context.font = "8px Segoe UI, sans-serif";
     context.textAlign = "center";
     context.fillText(`NOZZLE ${layout.angleAxis}/${({ A: "X", B: "Y", C: "Z" })[layout.angleAxis]}`, bounds.width - 49, 20);
@@ -303,7 +330,7 @@ export function createScenePreview(canvas) {
   });
   canvas.addEventListener("pointermove", (event) => {
     if (!drag || drag.pointerId !== event.pointerId) return;
-    yaw += (event.clientX - drag.x) * 0.012;
+    yaw -= (event.clientX - drag.x) * 0.012;
     pitch = clamp(pitch + (event.clientY - drag.y) * 0.008, 0.18, 1.25);
     drag = { ...drag, x: event.clientX, y: event.clientY };
     draw();
@@ -319,14 +346,14 @@ export function createScenePreview(canvas) {
   canvas.addEventListener("keydown", (event) => {
     if (!layout) return;
     const key = event.key;
-    if (key === "ArrowLeft") yaw -= 0.12;
-    else if (key === "ArrowRight") yaw += 0.12;
+    if (key === "ArrowLeft") yaw += 0.12;
+    else if (key === "ArrowRight") yaw -= 0.12;
     else if (key === "ArrowUp") pitch = clamp(pitch - 0.08, 0.18, 1.25);
     else if (key === "ArrowDown") pitch = clamp(pitch + 0.08, 0.18, 1.25);
     else if (key === "+" || key === "=") zoom = clamp(zoom * 1.1, 0.65, 2.5);
     else if (key === "-") zoom = clamp(zoom * 0.9, 0.65, 2.5);
     else if (key === "0") {
-      yaw = 0.28;
+      yaw = 0;
       pitch = 0.58;
       zoom = 1;
     } else return;
@@ -342,7 +369,31 @@ export function createScenePreview(canvas) {
       layout = nextLayout;
       draw();
     },
+    refresh: draw,
   };
+}
+
+function drawBedAxes(context, bounds, yaw, pitch) {
+  const origin = { x: 20, y: bounds.height - 30 };
+  const length = 22;
+  const cosYaw = Math.cos(yaw);
+  const sinYaw = Math.sin(yaw);
+  const sinPitch = Math.sin(pitch);
+  const xEnd = { x: origin.x + cosYaw * length, y: origin.y + sinYaw * sinPitch * length };
+  const yEnd = { x: origin.x + sinYaw * length, y: origin.y - cosYaw * sinPitch * length };
+  context.save();
+  context.lineWidth = 1.3;
+  context.font = "9px Segoe UI, sans-serif";
+  context.textAlign = "center";
+  context.strokeStyle = "#c55444";
+  drawLine(context, origin, xEnd);
+  context.fillStyle = "#c55444";
+  context.fillText("+X", xEnd.x + 7, xEnd.y + 3);
+  context.strokeStyle = "#4276ad";
+  drawLine(context, origin, yEnd);
+  context.fillStyle = "#4276ad";
+  context.fillText("+Y", yEnd.x, yEnd.y - 5);
+  context.restore();
 }
 
 function drawPolygon(context, points) {
