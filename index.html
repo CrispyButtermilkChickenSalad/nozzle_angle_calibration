@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f2f4f6">
+    <meta name="theme-color" content="#f6f2fa">
     <title>Nozzle angle calibration test</title>
     <link rel="stylesheet" href="styles.css">
     <script type="module" src="src/app.mjs"></script>
@@ -15,6 +15,7 @@
           <h1>Nozzle angle<br><span>calibration test.</span></h1>
           <p class="intro-copy">Set one nozzle tilt, then generate a test matrix comparing flow percentages and layer heights. Each flow value becomes a row; each layer height becomes a column.</p>
         </div>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">Use dark mode</button>
       </section>
 
       <div class="workspace">
@@ -39,17 +40,27 @@
 
             <fieldset>
               <legend><span class="legend-number">2</span> Nozzle &amp; layer stack <span class="legend-unit">MM / LAYERS</span></legend>
-              <div class="field-grid three-up">
-                <label>Nozzle tip diameter
-                  <span class="input-wrap"><input name="nozzleDiameter" type="number" min="0.05" max="5" step="any" value="0.40" required><span>mm</span></span>
+              <div class="field-grid two-up">
+                <label>Nozzle tip diameter <span class="optional-label">PHYSICAL OUTSIDE WIDTH</span>
+                  <span class="input-wrap"><input name="nozzleTipDiameter" type="number" min="0.1" max="10" step="0.1" value="0.80" required><span>mm</span></span>
                 </label>
+                <label>Nozzle hole diameter <span class="optional-label">FILAMENT OUTLET</span>
+                  <span class="input-wrap"><input name="nozzleHoleDiameter" type="number" min="0.1" max="5" step="0.1" value="0.40" required><span>mm</span></span>
+                </label>
+              </div>
+              <div class="field-grid two-up secondary-fields">
                 <label>Layers per specimen
-                  <span class="input-wrap"><input name="layerCount" type="number" min="1" max="20" step="1" value="3" required><span>layers</span></span>
+                  <span class="input-wrap"><input name="layerCount" type="number" min="1" max="10" step="1" value="3" required><span>layers</span></span>
                 </label>
                 <label>Bead length
                   <span class="input-wrap"><input name="beadLength" type="number" min="2" max="100" step="1" value="12" required><span>mm</span></span>
                 </label>
               </div>
+              <label class="check-label custom-code-toggle">
+                <input name="threeWallSpecimens" type="checkbox">
+                <span>Print three adjacent wall lines per specimen</span>
+              </label>
+              <p class="field-help">Three-wall spacing uses the fixed nozzle-hole extrusion width and Slic3r flow math for nominal overlap.</p>
             </fieldset>
 
             <fieldset>
@@ -71,16 +82,16 @@
               <legend><span class="legend-number">4</span> Layer height calibration <span class="legend-unit">MM / COLUMNS</span></legend>
               <div class="field-grid three-up">
                 <label>Minimum layer height
-                  <span class="input-wrap"><input name="layerHeightStart" type="number" min="0.01" max="10" step="any" value="0.15" required><span>mm</span></span>
+                  <span class="input-wrap"><input name="layerHeightStart" type="number" min="0.1" max="10" step="0.1" value="0.30" required><span>mm</span></span>
                 </label>
                 <label>Maximum layer height
-                  <span class="input-wrap"><input name="layerHeightEnd" type="number" min="0.01" max="10" step="any" value="0.25" required><span>mm</span></span>
+                  <span class="input-wrap"><input name="layerHeightEnd" type="number" min="0.1" max="10" step="0.1" value="0.50" required><span>mm</span></span>
                 </label>
                 <label>Height increment
                   <span class="input-wrap"><input name="layerHeightStep" type="number" min="0.01" max="10" step="any" value="0.05" required><span>mm</span></span>
                 </label>
               </div>
-              <p id="height-clearance-help" class="field-help">Minimum safe height at this angle: calculated from the nozzle-tip collision model.</p>
+              <p id="height-clearance-help" class="field-help">Minimum safe height uses physical nozzle-tip diameter; maximum is 1.5 × nozzle-hole diameter.</p>
             </fieldset>
 
             <fieldset class="last-fieldset">
@@ -117,7 +128,7 @@
                   </span>
                 </label>
               </div>
-              <div class="field-grid three-up secondary-fields">
+              <div class="field-grid two-up secondary-fields">
                 <label>Bed size X / diameter
                   <span class="input-wrap"><input name="bedSizeX" type="number" min="50" max="2000" step="1" value="220" required><span>mm</span></span>
                 </label>
@@ -144,9 +155,6 @@
                 <label>Tool index <span class="optional-label">MARLIN / RRF</span>
                   <span class="input-wrap"><input name="toolIndex" type="number" min="0" max="15" step="1" value="0" required></span>
                 </label>
-                <label>Travel feedrate
-                  <span class="input-wrap"><input name="travelFeedrate" type="number" min="100" max="20000" step="100" value="6000" required><span>mm/min</span></span>
-                </label>
               </div>
               <p id="bed-center-help" class="field-help">Pattern is centered on the bed center. Leave center coordinates blank to calculate them from bed size and origin mode. Circular beds use bed size X as the diameter.</p>
               <p id="axis-help" class="field-help">Common printer convention: A rotates about X, B about Y, and C about Z. Confirm the selected axis is enabled and measured in degrees by your firmware.</p>
@@ -156,7 +164,7 @@
               <legend><span class="legend-number">6</span> Retraction &amp; Z-hop <span class="legend-unit">MM / MM/S</span></legend>
               <div class="field-grid three-up">
                 <label>Retract distance
-                  <span class="input-wrap"><input name="retractDistance" type="number" min="0" max="20" step="any" value="0.8" required><span>mm</span></span>
+                  <span class="input-wrap"><input name="retractDistance" type="number" min="0" max="20" step="0.1" value="0.5" required><span>mm</span></span>
                 </label>
                 <label>Retract speed
                   <span class="input-wrap"><input name="retractSpeed" type="number" min="1" max="100" step="any" value="35" required><span>mm/s</span></span>
@@ -167,7 +175,7 @@
               </div>
               <div class="field-grid two-up secondary-fields">
                 <label>Z-hop height
-                  <span class="input-wrap"><input name="zHopHeight" type="number" min="0" max="20" step="any" value="0.4" required><span>mm</span></span>
+                  <span class="input-wrap"><input name="zHopHeight" type="number" min="0" max="20" step="0.1" value="0.1" required><span>mm</span></span>
                 </label>
                 <label class="check-label">
                   <input name="firmwareRetraction" type="checkbox">
@@ -183,7 +191,7 @@
                   <span class="input-wrap"><input name="firstLayerHeight" type="number" min="0.01" max="10" step="any" value="0.24" required><span>mm</span></span>
                 </label>
                 <label>First layer speed
-                  <span class="input-wrap"><input name="firstLayerSpeed" type="number" min="1" max="500" step="any" value="20" required><span>mm/s</span></span>
+                  <span class="input-wrap"><input name="firstLayerSpeed" type="number" min="1" max="500" step="any" value="30" required><span>mm/s</span></span>
                 </label>
                 <label>First layer fan
                   <span class="input-wrap"><input name="firstLayerFan" type="number" min="0" max="100" step="1" value="0" required><span>%</span></span>
@@ -191,7 +199,7 @@
               </div>
               <div class="field-grid two-up secondary-fields">
                 <label>Matrix base line width
-                  <span class="input-wrap"><input name="baseLineWidthPercent" type="number" min="100" max="300" step="1" value="150" required><span>% nozzle</span></span>
+                  <span class="input-wrap"><input name="baseLineWidthPercent" type="number" min="100" max="300" step="1" value="150" required><span>% hole</span></span>
                 </label>
               </div>
               <p class="field-help">A single solid base layer under the matrix connects all labels and test lines. No individual skirts are printed.</p>
@@ -221,7 +229,21 @@
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">9</span> Start / end G-code <span class="legend-unit">OPTIONAL OVERRIDES</span></legend>
+              <legend><span class="legend-number">9</span> Pressure advance <span class="legend-unit">PRE-CALIBRATED / OPTIONAL OVERRIDE</span></legend>
+              <div class="field-grid two-up">
+                <label>Fixed pressure advance
+                  <span class="input-wrap"><input name="pressureAdvance" type="number" min="0" max="10" step="0.01" value="0.04" required><span>firmware units</span></span>
+                </label>
+                <label class="check-label">
+                  <input name="usePressureAdvance" type="checkbox" checked>
+                  <span>Emit firmware-specific command for this value</span>
+                </label>
+              </div>
+              <p class="field-help">Pressure advance should be calibrated before this test. 0.04 is a starting default for direct drive. Firmware units differ; uncheck to retain the printer's configured value.</p>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="legend-number">10</span> Start / end G-code <span class="legend-unit">OPTIONAL OVERRIDES</span></legend>
               <div class="field-grid three-up">
                 <label class="check-label">
                   <input name="homeAxes" type="checkbox" checked>
@@ -254,7 +276,7 @@
             </fieldset>
 
             <div class="form-footer">
-              <p>Line width is fixed to nozzle tip diameter.<br>Review generated start, end, and motion commands before printing.</p>
+              <p>Test extrusion width is fixed to nozzle-hole diameter.<br>Review generated start, end, and motion commands before printing.</p>
               <button class="primary-button" type="submit">
                 <span>Generate matrix</span><span aria-hidden="true">↗</span>
               </button>
@@ -286,6 +308,7 @@
               <span><i class="legend-swatch bead-swatch"></i> TEST LINES</span>
               <span><i class="legend-swatch base-swatch"></i> SOLID FIRST LAYER</span>
               <span><i class="legend-swatch tag-swatch"></i> MATRIX LABELS</span>
+              <span><i class="legend-swatch purge-swatch"></i> SEPARATE PURGE LINE</span>
             </div>
           </div>
           <p id="layout-summary" class="layout-summary">BED FIT IS CHECKED WHEN YOU GENERATE THE PATTERN.</p>

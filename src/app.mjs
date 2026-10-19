@@ -7,18 +7,20 @@ const statusBadge = document.querySelector("#status-badge");
 const errorMessage = document.querySelector("#form-error");
 const downloadButton = document.querySelector("#download-button");
 const outputName = document.querySelector("#output-name");
+const themeToggle = document.querySelector("#theme-toggle");
 let generated = null;
 const scenePreview = createScenePreview(document.querySelector("#preview-scene"));
 
 const fields = [
   "angleDegrees", "layerHeightStart", "layerHeightEnd", "layerHeightStep",
-  "layerCount", "nozzleDiameter",
+  "layerCount", "nozzleTipDiameter", "nozzleHoleDiameter", "threeWallSpecimens",
   "flowStartPercent", "flowEndPercent", "flowStepPercent",
   "firmware", "bedShape", "filamentDiameter", "angleAxis",
   "bedSizeX", "bedSizeY", "originAtCenter", "bedCenterX", "bedCenterY",
-  "extruderName", "toolIndex", "beadLength", "travelFeedrate",
+  "extruderName", "toolIndex", "beadLength",
   "retractDistance", "retractSpeed", "unretractSpeed", "zHopHeight", "firmwareRetraction",
   "firstLayerHeight", "firstLayerSpeed", "firstLayerFan", "baseLineWidthPercent",
+  "pressureAdvance", "usePressureAdvance",
   "printSpeed", "acceleration", "fanSpeed",
   "hotendTemperature", "bedTemperature", "homeAxes", "heatBed",
   "heatHotend", "useCustomStartGcode", "customStartGcode", "useCustomEndGcode",
@@ -39,11 +41,12 @@ function readConfig() {
 
 function renderPreview(result) {
   scenePreview.update(result.preview);
+  const spacingStatus = result.preview.labelMetrics.readable ? "legibility spacing passes" : "legibility spacing is tight";
   document.querySelector("#preview-help").textContent =
-    "Matrix rows are flow percentages and columns are layer heights. Drag to orbit, scroll to zoom, use arrows and +/-; press 0 to reset.";
+    `Height columns run left-to-right along +X; flow rises from minimum at +Y to maximum toward -Y. Labels are ${result.preview.labelMetrics.glyphHeight.toFixed(1)} mm high with ${result.preview.labelMetrics.gapClearance.toFixed(2)} mm inter-character clearance (${spacingStatus}). Drag to orbit, scroll to zoom, use arrows and +/-; press 0 to reset.`;
   rowCount.textContent = `${result.rowCount} × ${result.columnCount} MATRIX`;
   const toolbar = document.querySelector("#layout-summary");
-  toolbar.textContent = `${result.bed.shape.toUpperCase()} BED · ${result.rowCount} FLOW ROWS × ${result.columnCount} HEIGHT COLUMNS · ${result.dimensions.width.toFixed(1)} × ${result.dimensions.height.toFixed(1)} MM · CENTERED AT ${result.bed.centerX.toFixed(1)}, ${result.bed.centerY.toFixed(1)}`;
+  toolbar.textContent = `${result.bed.shape.toUpperCase()} BED · ${result.rowCount} FLOW ROWS × ${result.columnCount} HEIGHT COLUMNS · ${result.wallCount} WALL${result.wallCount === 1 ? "" : "S"} PER SPECIMEN · 50 MM PURGE · ${result.dimensions.width.toFixed(1)} × ${result.dimensions.height.toFixed(1)} MM · CENTERED AT ${result.bed.centerX.toFixed(1)}, ${result.bed.centerY.toFixed(1)}`;
   document.querySelector("#preview-code").textContent = result.text;
   statusBadge.textContent = "PATTERN READY";
   statusBadge.classList.add("is-ready");
@@ -54,30 +57,37 @@ const bedY = form.elements.namedItem("bedSizeY");
 const bedYLabel = bedY.closest("label");
 const layerHeightStart = form.elements.namedItem("layerHeightStart");
 const layerHeightEnd = form.elements.namedItem("layerHeightEnd");
+const firstLayerHeight = form.elements.namedItem("firstLayerHeight");
+const nozzleTipDiameter = form.elements.namedItem("nozzleTipDiameter");
+const nozzleHoleDiameter = form.elements.namedItem("nozzleHoleDiameter");
 const customStart = form.elements.namedItem("customStartGcode");
 const customEnd = form.elements.namedItem("customEndGcode");
+const pressureAdvance = form.elements.namedItem("pressureAdvance");
+const pressureAdvanceLabel = pressureAdvance.closest("label");
 
 function updateHeightConstraints() {
-  const nozzleDiameter = Number(form.elements.namedItem("nozzleDiameter").value);
+  const tipDiameter = Number(nozzleTipDiameter.value);
+  const holeDiameter = Number(nozzleHoleDiameter.value);
   const angle = Number(form.elements.namedItem("angleDegrees").value);
   const helper = document.querySelector("#height-clearance-help");
   try {
-    const minimum = minimumLayerHeight(nozzleDiameter, angle);
-    const minimumInput = Math.max(0.01, minimum);
-    layerHeightStart.min = String(minimumInput);
-    layerHeightEnd.min = String(minimumInput);
-    layerHeightStart.max = String(nozzleDiameter);
-    layerHeightEnd.max = String(nozzleDiameter);
+    const minimum = minimumLayerHeight(tipDiameter, angle);
+    const maximum = Number((holeDiameter * 1.5).toFixed(6));
     const safeMinimum = Math.max(0.01, minimum);
     const start = Number(layerHeightStart.value);
     const end = Number(layerHeightEnd.value);
+    layerHeightStart.max = String(maximum);
+    layerHeightEnd.max = String(maximum);
+    firstLayerHeight.max = String(maximum);
     layerHeightStart.setCustomValidity(start < safeMinimum ? `At ${angle}° tilt, layer height must be at least ${minimum.toFixed(3)} mm.` : "");
     layerHeightEnd.setCustomValidity(end < safeMinimum ? `At ${angle}° tilt, layer height must be at least ${minimum.toFixed(3)} mm.` : "");
-    helper.textContent = `Collision-safe minimum at ${angle}°: ${minimum.toFixed(6)} mm. The full matrix range must meet this minimum and stay at or below the nozzle diameter (${nozzleDiameter.toFixed(2)} mm).`;
+    firstLayerHeight.setCustomValidity(Number(firstLayerHeight.value) > maximum ? `Base height cannot exceed 1.5 × nozzle-hole diameter (${maximum.toFixed(3)} mm).` : "");
+    helper.textContent = `Collision-safe minimum at ${angle}°: ${minimum.toFixed(6)} mm from the ${tipDiameter.toFixed(2)} mm physical tip. Maximum layer height: ${maximum.toFixed(2)} mm (1.5 × ${holeDiameter.toFixed(2)} mm nozzle hole).`;
   } catch {
     layerHeightStart.setCustomValidity("");
     layerHeightEnd.setCustomValidity("");
-    helper.textContent = "Enter a valid nozzle diameter and tilt to calculate the minimum safe layer height.";
+    firstLayerHeight.setCustomValidity("");
+    helper.textContent = "Enter valid nozzle-tip and nozzle-hole diameters and a tilt to calculate safe layer-height limits.";
   }
 }
 
@@ -89,11 +99,21 @@ function updateConditionalFields() {
   form.elements.namedItem("customEndGcode").disabled = !form.elements.namedItem("useCustomEndGcode").checked;
   customStart.closest(".textarea-label").classList.toggle("is-disabled", customStart.disabled);
   customEnd.closest(".textarea-label").classList.toggle("is-disabled", customEnd.disabled);
+  pressureAdvance.disabled = !form.elements.namedItem("usePressureAdvance").checked;
+  pressureAdvanceLabel.classList.toggle("is-disabled", pressureAdvance.disabled);
   updateHeightConstraints();
 }
 
 form.addEventListener("change", updateConditionalFields);
 updateConditionalFields();
+
+themeToggle.addEventListener("click", () => {
+  const dark = document.body.dataset.theme !== "dark";
+  document.body.dataset.theme = dark ? "dark" : "light";
+  themeToggle.textContent = dark ? "Use light mode" : "Use dark mode";
+  themeToggle.setAttribute("aria-pressed", String(dark));
+  scenePreview.refresh();
+});
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();

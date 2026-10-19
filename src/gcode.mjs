@@ -1,20 +1,23 @@
 const MAX_RANGE_VALUES = 100;
 const MAX_TEST_CELLS = 100;
 const MAX_PRINTED_LAYERS = 500;
+const MAX_LAYERS_PER_SPECIMEN = 10;
+const PURGE_LENGTH = 50;
+const TRAVEL_FEEDRATE = 6000;
 const EPSILON = 1e-9;
 
 export function layerArea(layerHeight, lineWidth) {
   return (lineWidth - layerHeight) * layerHeight + Math.PI * (layerHeight / 2) ** 2;
 }
 
-export function minimumLayerHeight(nozzleDiameter, tiltDegrees) {
-  if (!Number.isFinite(nozzleDiameter) || nozzleDiameter <= 0) {
+export function minimumLayerHeight(nozzleTipDiameter, tiltDegrees) {
+  if (!Number.isFinite(nozzleTipDiameter) || nozzleTipDiameter <= 0) {
     throw new Error("Nozzle tip diameter must be greater than zero.");
   }
   if (!Number.isFinite(tiltDegrees) || tiltDegrees < 0 || tiltDegrees >= 90) {
     throw new Error("Nozzle tilt must be at least 0° and less than 90°.");
   }
-  const radius = nozzleDiameter / 2;
+  const radius = nozzleTipDiameter / 2;
   const horizontalProjection = radius * Math.cos(tiltDegrees * Math.PI / 180);
   return Math.sqrt(Math.max(0, radius ** 2 - horizontalProjection ** 2));
 }
@@ -57,7 +60,7 @@ function format(value, decimals = 6) {
   return Number(value.toFixed(decimals)).toString();
 }
 
-function createCases(config, clearance, nozzleDiameter) {
+function createCases(config, clearance, nozzleHoleDiameter) {
   const angle = numeric(config.angleDegrees, "Nozzle angle");
   const heights = valueRange(
     config.layerHeightStart,
@@ -65,7 +68,7 @@ function createCases(config, clearance, nozzleDiameter) {
     config.layerHeightStep,
     "Layer height",
     0.01,
-    nozzleDiameter,
+    Number((nozzleHoleDiameter * 1.5).toFixed(6)),
   );
   const flows = valueRange(
     config.flowStartPercent,
@@ -83,8 +86,8 @@ function createCases(config, clearance, nozzleDiameter) {
       throw new Error(`Minimum layer height ${format(height)} mm is below the collision-safe minimum ${format(clearance)} mm at ${format(angle, 1)}° tilt.`);
     }
   }
-  if (!Number.isInteger(layerCount) || layerCount < 1 || layerCount > 20) {
-    throw new Error("Stacked layer count must be a whole number between 1 and 20.");
+  if (!Number.isInteger(layerCount) || layerCount < 1 || layerCount > MAX_LAYERS_PER_SPECIMEN) {
+    throw new Error(`Stacked layer count must be a whole number between 1 and ${MAX_LAYERS_PER_SPECIMEN}.`);
   }
 
   const cellCount = flows.length * heights.length;
@@ -95,13 +98,15 @@ function createCases(config, clearance, nozzleDiameter) {
     throw new Error(`This combination creates ${cellCount * layerCount} test layers; reduce the matrix or stacked layer count to ${MAX_PRINTED_LAYERS} layers or fewer.`);
   }
 
-  const cases = flows.flatMap((flowPercent) => heights.map((height) => ({
+  const wallCount = config.threeWallSpecimens ? 3 : 1;
+  const cases = heights.flatMap((height) => flows.map((flowPercent) => ({
     height,
-    width: nozzleDiameter,
+    width: nozzleHoleDiameter,
     flowPercent,
     multiplier: flowPercent / 100,
+    wallCount,
   })));
-  return { angle, cases, flows, heights, layerCount };
+  return { angle, cases, flows, heights, layerCount, wallCount };
 }
 
 const SEGMENTS = {
@@ -118,26 +123,28 @@ const SEGMENTS = {
   "-": ["g"],
 };
 
-function markerSegments(text, scale = 0.8) {
+function markerSegments(text, nozzleHoleDiameter) {
+  const height = Math.max(nozzleHoleDiameter * 8, 2.4);
+  const scale = height / 2;
+  const glyphGap = Math.max(nozzleHoleDiameter * 1.5, 0.4);
   const paths = [];
   const width = 1.2 * scale;
-  const height = 2 * scale;
   let cursor = 0;
   for (const character of text) {
     if (character === ".") {
-      paths.push([[cursor + 0.12 * scale, height], [cursor + 0.24 * scale, height]]);
-      cursor += 0.55 * scale;
+      paths.push([[cursor, height - nozzleHoleDiameter / 2], [cursor + Math.max(nozzleHoleDiameter * 1.2, 0.35), height - nozzleHoleDiameter / 2]]);
+      cursor += glyphGap;
       continue;
     }
     if (character === "°") {
-      const diameter = 0.48 * scale;
-      const top = -0.12 * scale;
-      const left = cursor + 0.08 * scale;
+      const diameter = Math.max(nozzleHoleDiameter * 1.4, 0.55);
+      const top = 0;
+      const left = cursor + nozzleHoleDiameter * 0.2;
       paths.push([[left, top], [left + diameter, top]]);
       paths.push([[left + diameter, top], [left + diameter, top + diameter]]);
       paths.push([[left + diameter, top + diameter], [left, top + diameter]]);
       paths.push([[left, top + diameter], [left, top]]);
-      cursor += 0.8 * scale;
+      cursor += diameter + glyphGap;
       continue;
     }
     const segments = {
@@ -150,9 +157,15 @@ function markerSegments(text, scale = 0.8) {
       g: [[cursor, height / 2], [cursor + width, height / 2]],
     };
     for (const segment of SEGMENTS[character] ?? []) paths.push(segments[segment]);
-    cursor += width + 0.45 * scale;
+    cursor += width + glyphGap;
   }
-  return { paths, width: Math.max(0, cursor - 0.45 * scale), height };
+  return {
+    paths,
+    width: Math.max(0, cursor - glyphGap),
+    height,
+    glyphGap,
+    gapClearance: glyphGap - nozzleHoleDiameter,
+  };
 }
 
 function extrusionPerMm(height, width, multiplier, filamentDiameter) {
@@ -191,12 +204,12 @@ function fanCommand(percent) {
 
 export function generateGcode(config) {
   const angle = numeric(config.angleDegrees, "Nozzle angle");
-  const nozzleDiameter = validateNumber(config.nozzleDiameter, "Nozzle tip diameter", 0.05, 5);
-  const clearance = minimumLayerHeight(nozzleDiameter, angle);
-  const { cases, flows, heights, layerCount } = createCases(config, clearance, nozzleDiameter);
+  const nozzleTipDiameter = validateNumber(config.nozzleTipDiameter, "Nozzle tip diameter", 0.05, 10);
+  const nozzleHoleDiameter = validateNumber(config.nozzleHoleDiameter, "Nozzle hole diameter", 0.05, 5);
+  const clearance = minimumLayerHeight(nozzleTipDiameter, angle);
+  const { cases, flows, heights, layerCount, wallCount } = createCases(config, clearance, nozzleHoleDiameter);
   const filamentDiameter = validateNumber(config.filamentDiameter, "Filament diameter", 0.5, 5);
   const beadLength = validateNumber(config.beadLength, "Bead length", 2, 100);
-  const travelFeedrate = validateNumber(config.travelFeedrate, "Travel feedrate", 100, 20000);
   const printSpeed = validateNumber(config.printSpeed, "Print speed", 1, 500);
   const firstLayerSpeed = validateNumber(config.firstLayerSpeed, "First layer speed", 1, 500);
   const acceleration = validateNumber(config.acceleration, "Acceleration", 0, 50000);
@@ -208,8 +221,12 @@ export function generateGcode(config) {
   const retractSpeed = validateNumber(config.retractSpeed, "Retract speed", 1, 100);
   const unretractSpeed = validateNumber(config.unretractSpeed, "Unretract speed", 1, 100);
   const zHopHeight = validateNumber(config.zHopHeight, "Z-hop height", 0, 20);
-  const firstLayerHeight = validateNumber(config.firstLayerHeight, "First layer height", 0.01, 10);
+  const maxLayerHeight = Number((nozzleHoleDiameter * 1.5).toFixed(6));
+  const firstLayerHeight = validateNumber(config.firstLayerHeight, "First layer height", 0.01, maxLayerHeight);
   const baseLineWidthPercent = validateNumber(config.baseLineWidthPercent, "Base layer line width", 100, 300);
+  const pressureAdvance = config.usePressureAdvance
+    ? validateNumber(config.pressureAdvance, "Pressure advance", 0, 10)
+    : 0;
   const bedSizeX = validateNumber(config.bedSizeX, "Bed size X", 50, 2000);
   const bedSizeY = config.bedShape === "circular"
     ? bedSizeX
@@ -232,23 +249,28 @@ export function generateGcode(config) {
   if (firmware === "klipper" && toolIndex > 0 && !extruderName) {
     throw new Error("For a non-default Klipper tool, enter its extruder name instead of a tool index.");
   }
-  if (firstLayerHeight > nozzleDiameter) throw new Error("First layer height cannot exceed nozzle tip diameter.");
   if (bedShape === "circular" && optionalNumber(config.bedSizeY, "Bed size Y") !== null) {
     const circularY = validateNumber(config.bedSizeY, "Circular bed diameter (bed size Y)", 50, 2000);
     if (Math.abs(circularY - bedSizeX) > EPSILON) throw new Error("For a circular bed, X and Y must both equal the bed diameter.");
   }
 
-  const flowWidth = nozzleDiameter * baseLineWidthPercent / 100;
-  const firstHeightLabel = markerSegments(format(heights[0], 3));
-  const lastHeightLabel = markerSegments(format(heights.at(-1), 3));
-  const flowLabels = flows.map((flow) => markerSegments(format(flow, 3)));
-  const layerLabels = heights.map((height) => markerSegments(format(height, 3)));
-  const angleLabel = markerSegments(`${format(angle, 1)}°`);
+  const flowWidth = nozzleHoleDiameter * baseLineWidthPercent / 100;
+  const flowLabels = flows.map((flow) => markerSegments(format(flow, 3), nozzleHoleDiameter));
+  const layerLabels = heights.map((height) => markerSegments(format(height, 3), nozzleHoleDiameter));
+  const angleLabel = markerSegments(`${format(angle, 1)}°`, nozzleHoleDiameter);
   const labelWidth = Math.max(...flowLabels.map((label) => label.width));
   const columnLabelWidth = Math.max(...layerLabels.map((label) => label.width), beadLength);
   const leftMargin = 2;
   const topMargin = 2;
-  const rowPitch = Math.max(3.2, nozzleDiameter + 1.5);
+  const wallSpacings = heights.map((height) => nozzleHoleDiameter - height * (1 - Math.PI / 4));
+  if (wallSpacings.some((spacing) => spacing <= 0)) {
+    throw new Error("Layer height leaves no positive spacing for adjacent wall lines.");
+  }
+  const specimenWidth = nozzleHoleDiameter + (wallCount - 1) * Math.max(...wallSpacings);
+  const rowPitch = Math.max(
+    Math.max(...flowLabels.map((label) => label.height)) + nozzleHoleDiameter + 2,
+    specimenWidth + 3,
+  );
   const columnPitch = columnLabelWidth + 2;
   const firstColumnCenter = leftMargin + labelWidth + 2 + columnPitch / 2;
   const columnCenters = heights.map((_, index) => firstColumnCenter + index * columnPitch);
@@ -260,9 +282,14 @@ export function generateGcode(config) {
   const plateMaxX = firstColumnCenter + (heights.length - 0.5) * columnPitch;
   const plateMinY = 0.5;
   const plateMaxY = rowYs.at(-1) + 1.7;
-  const patternWidth = plateMaxX - plateMinX;
-  const patternHeight = plateMaxY - plateMinY;
-  const includedParts = "solid matrix base, labels, and test lines";
+  const purgeX = plateMinX;
+  const purgeY = plateMaxY + nozzleHoleDiameter / 2 + 4;
+  const purgeMaxX = purgeX + PURGE_LENGTH;
+  const layoutMaxX = Math.max(plateMaxX, purgeMaxX + nozzleHoleDiameter / 2);
+  const layoutMaxY = purgeY + nozzleHoleDiameter / 2;
+  const patternWidth = layoutMaxX - plateMinX;
+  const patternHeight = layoutMaxY - plateMinY;
+  const includedParts = "solid matrix base, labels, test lines, and purge line";
 
   if (bedShape === "rectangular") {
     const minX = bedCenterX - patternWidth / 2;
@@ -280,28 +307,39 @@ export function generateGcode(config) {
     throw new Error(`Pattern including the ${includedParts} is too large to fit inside the ${format(bedSizeX, 1)} mm circular bed.`);
   }
 
-  const offsetX = bedCenterX - (plateMinX + plateMaxX) / 2;
-  const offsetY = bedCenterY - (plateMinY + plateMaxY) / 2;
+  const offsetX = bedCenterX - (plateMinX + layoutMaxX) / 2;
+  const offsetY = bedCenterY - (plateMinY + layoutMaxY) / 2;
   const xPosition = (value) => format(value + offsetX);
-  const yPosition = (value) => format(value + offsetY);
+  const mirrorY = (value) => plateMinY + layoutMaxY - value;
+  const yPosition = (value) => format(mirrorY(value) + offsetY);
   const tagHeight = heights[0];
   const maximumHeight = heights.at(-1);
   const lastLayerZ = firstLayerHeight + layerCount * maximumHeight;
-  const clearanceZ = lastLayerZ + Math.max(nozzleDiameter, 1) + zHopHeight;
+  const clearanceZ = lastLayerZ + Math.max(nozzleTipDiameter, 1) + zHopHeight;
+  const labelGapClearance = Math.min(...[angleLabel, ...flowLabels, ...layerLabels].map((label) => label.gapClearance));
   const lines = [
     "; Nozzle angle calibration test matrix",
     `; Firmware profile: ${firmware}; bed: ${bedShape} ${format(bedSizeX, 1)} × ${format(bedSizeY, 1)} mm`,
     `; Pattern centered at X${format(bedCenterX)} Y${format(bedCenterY)}; origin at bed center: ${Boolean(config.originAtCenter)}`,
-    `; Matrix: ${flows.length} flow rows × ${heights.length} layer-height columns; ${cases.length} test lines; ${layerCount} layers per cell.`,
+    "; Bed orientation: height columns increase left-to-right (+X); minimum flow is at +Y, increasing flow runs toward -Y.",
+    `; Matrix: ${flows.length} flow rows × ${heights.length} layer-height columns; ${cases.length} specimens; ${layerCount} layers per specimen.`,
+    `; Print order: complete each layer-height column from minimum to maximum; flow increases within each column.`,
     `; Nozzle tilt ${format(angle, 1)} degrees from vertical; rotary axis ${angleAxis} rotates about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}.`,
     `; Selected rotary axis: ${angleAxis} (rotation about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}).`,
     `; Flow labels are percentages: ${format(flows[0], 3)}% to ${format(flows.at(-1), 3)}% in ${format(numeric(config.flowStepPercent, "Flow increment"), 3)}% increments.`,
-    `; Layer-height labels are millimeters: ${format(heights[0])} to ${format(heights.at(-1))} mm in ${format(numeric(config.layerHeightStep, "Layer-height increment"))} mm increments.`,
-    `; Collision-safe minimum height at this angle: ${format(clearance, 6)} mm; nozzle tip diameter ${format(nozzleDiameter)} mm.`,
+    `; Layer-height labels are millimeters: ${format(heights[0])} to ${format(heights.at(-1))} mm in ${format(numeric(config.layerHeightStep, "Layer-height increment"))} mm increments; maximum is 1.5 × nozzle-hole diameter.`,
+    `; Collision-safe minimum height at this angle: ${format(clearance, 6)} mm; physical nozzle tip diameter ${format(nozzleTipDiameter)} mm.`,
+    `; Nozzle outlet diameter ${format(nozzleHoleDiameter)} mm sets test-line extrusion width and Slic3r wall spacing.`,
+    `; Specimen walls: ${wallCount}; Slic3r centerline spacing varies by layer height; nominal extrusion width ${format(nozzleHoleDiameter)} mm.`,
     `; One solid first-layer base connects the matrix labels and all test lines. No individual skirts are printed.`,
     `; Base height ${format(firstLayerHeight)} mm; base line width ${format(flowWidth)} mm; label layer ${format(tagHeight)} mm.`,
+    `; Seven-segment labels: ${format(angleLabel.height)} mm high; minimum inter-character clearance ${format(labelGapClearance)} mm.`,
     `; Bead area: A = (w-h)h + pi(h/2)^2. E uses area * distance * flow percentage / filament area.`,
+    `; Adjacent center spacing = extrusion width - layer height * (1 - pi/4); walls overlap nominally to avoid gaps.`,
+    `; Travel feedrate fixed at ${TRAVEL_FEEDRATE} mm/min.`,
     `; Retract ${format(retractDistance)} mm at ${format(retractSpeed)} mm/s; Z-hop ${format(zHopHeight)} mm.`,
+    `; Purge line length ${PURGE_LENGTH} mm, printed before the base.`,
+    `; Pressure advance ${config.usePressureAdvance ? `fixed at ${format(pressureAdvance)}` : "left to firmware configuration"}.`,
     "; Review firmware support, bed limits, start/end macros, and nozzle clearance before printing.",
     "G21 ; units in mm",
     "G90 ; absolute XYZ positioning",
@@ -338,6 +376,12 @@ export function generateGcode(config) {
     lines.push("; Custom start G-code");
     lines.push(gcodeBlock(config.customStartGcode, { bedTemperature, hotendTemperature, toolIndex, extruderName }));
   }
+  if (config.usePressureAdvance) {
+    if (firmware === "klipper") lines.push(`SET_PRESSURE_ADVANCE ADVANCE=${format(pressureAdvance)}`);
+    else if (firmware === "marlin") lines.push(`M900 K${format(pressureAdvance)}`);
+    else if (firmware === "reprap") lines.push(`M572 D${toolIndex} S${format(pressureAdvance)}`);
+    else lines.push("; Set the fixed pressure-advance value using the command supported by this firmware.");
+  }
 
   const retractFeedrate = format(retractSpeed * 60, 0);
   const unretractFeedrate = format(unretractSpeed * 60, 0);
@@ -347,8 +391,8 @@ export function generateGcode(config) {
       if (config.firmwareRetraction) lines.push("G10");
       else lines.push(`G1 E-${format(retractDistance)} F${retractFeedrate} ; retract`);
     }
-    lines.push(`G0 Z${format(clearanceZ)} F${format(travelFeedrate, 0)} ; lift / Z-hop`);
-    lines.push(`G0 X${xPosition(x)} Y${yPosition(y)} F${format(travelFeedrate, 0)}`);
+    lines.push(`G0 Z${format(clearanceZ)} F${TRAVEL_FEEDRATE} ; lift / Z-hop`);
+    lines.push(`G0 X${xPosition(x)} Y${yPosition(y)} F${TRAVEL_FEEDRATE}`);
     lines.push(`G0 Z${format(z)}`);
     if (hasExtruded && retractDistance > 0) {
       if (config.firmwareRetraction) lines.push("G11");
@@ -357,7 +401,7 @@ export function generateGcode(config) {
   };
   const printSegment = (x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt) => {
     travelTo(x1, y1, z);
-    lines.push(`G1 ${angleAxis}${format(tilt, 1)} F${format(travelFeedrate, 0)}`);
+    lines.push(`G1 ${angleAxis}${format(tilt, 1)} F${TRAVEL_FEEDRATE}`);
     const e = extrusionPerMm(height, width, multiplier, filamentDiameter) * Math.hypot(x2 - x1, y2 - y1);
     lines.push(`G1 X${xPosition(x2)} Y${yPosition(y2)} E${format(e, 8)} F${format(feedrate * 60, 0)}`);
     hasExtruded = true;
@@ -366,10 +410,14 @@ export function generateGcode(config) {
     for (const path of tag.paths) {
       printSegment(
         path[0][0], path[0][1], path[1][0], path[1][1],
-        z, height, nozzleDiameter, 1, firstLayerSpeed, 0,
+        z, height, nozzleHoleDiameter, 1, firstLayerSpeed, 0,
       );
     }
   };
+
+  lines.push("");
+  lines.push("; 50 MM PURGE LINE | separate from the matrix base and samples, before printing the base");
+  printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 1, firstLayerSpeed, 0);
 
   lines.push("");
   lines.push("; SOLID MATRIX BASE | one connected first layer, no per-line skirts");
@@ -391,7 +439,7 @@ export function generateGcode(config) {
     {
       kind: "angle",
       text: `${format(angle, 1)}°`,
-      ...markerSegments(`${format(angle, 1)}°`),
+      ...markerSegments(`${format(angle, 1)}°`, nozzleHoleDiameter),
       x: leftMargin,
       y: topMargin,
     },
@@ -406,7 +454,7 @@ export function generateGcode(config) {
       kind: "flow",
       text: format(flow, 3),
       ...flowLabels[index],
-      x: leftMargin,
+      x: leftMargin + labelWidth - flowLabels[index].width,
       y: rowYs[index] - flowLabels[index].height / 2,
     })),
   ];
@@ -425,22 +473,27 @@ export function generateGcode(config) {
     flowPercent,
     multiplier: flowPercent / 100,
     y: rowYs[rowIndex],
+    wallCount,
   }));
   const columnMetadata = heights.map((height, columnIndex) => ({
     height,
     xStart: columnCenters[columnIndex] - beadLength / 2,
     xEnd: columnCenters[columnIndex] + beadLength / 2,
+    wallSpacing: wallSpacings[columnIndex],
   }));
-  for (const row of rowMetadata) {
-    for (const column of columnMetadata) {
-      lines.push(`; CELL | nozzle ${format(angle, 1)} deg | layer ${format(column.height)} mm | flow ${format(row.flowPercent, 3)}%`);
+  for (const column of columnMetadata) {
+    for (const row of rowMetadata) {
+      lines.push(`; CELL | nozzle ${format(angle, 1)} deg | layer ${format(column.height)} mm | flow ${format(row.flowPercent, 3)}% | ${wallCount} wall(s) at ${format(column.wallSpacing)} mm center spacing`);
       lines.push(fanCommand(fanSpeed));
       for (let layerIndex = 1; layerIndex <= layerCount; layerIndex += 1) {
         const z = firstLayerHeight + layerIndex * column.height;
-        printSegment(
-          column.xStart, row.y, column.xEnd, row.y,
-          z, column.height, nozzleDiameter, row.multiplier, printSpeed, angle,
-        );
+        for (let wallIndex = 0; wallIndex < wallCount; wallIndex += 1) {
+          const wallY = row.y + (wallIndex - (wallCount - 1) / 2) * column.wallSpacing;
+          printSegment(
+            column.xStart, wallY, column.xEnd, wallY,
+            z, column.height, nozzleHoleDiameter, row.multiplier, printSpeed, angle,
+          );
+        }
       }
     }
   }
@@ -448,28 +501,37 @@ export function generateGcode(config) {
   if (config.useCustomEndGcode && config.customEndGcode.trim()) {
     lines.push("; Custom end G-code");
     lines.push(gcodeBlock(config.customEndGcode, { bedTemperature, hotendTemperature, toolIndex, extruderName }));
+  } else {
+    lines.push("; Default shutdown: turn off hotend and bed");
+    lines.push("M104 S0 ; turn off hotend");
+    lines.push("M140 S0 ; turn off bed");
   }
   lines.push("");
-  lines.push("; End of nozzle angle calibration test matrix. Add machine-specific park and shutdown commands as required.");
+  lines.push("; End of nozzle angle calibration test matrix.");
 
   const shifted = (value, offset) => value + offset;
   const absoluteTags = tags.map((tag) => ({
     kind: tag.kind,
     text: tag.text,
     x: shifted(tag.x, offsetX),
-    y: shifted(tag.y, offsetY),
-    paths: tag.paths.map((path) => path.map(([x, y]) => [shifted(x + tag.x, offsetX), shifted(y + tag.y, offsetY)])),
+    y: shifted(mirrorY(tag.y), offsetY),
+    paths: tag.paths.map((path) => path.map(([x, y]) => [
+      shifted(x + tag.x, offsetX),
+      shifted(mirrorY(y + tag.y), offsetY),
+    ])),
   }));
   const rows = rowMetadata.map((row) => ({
-    y: shifted(row.y, offsetY),
+    y: shifted(mirrorY(row.y), offsetY),
     flowPercent: row.flowPercent,
     multiplier: row.multiplier,
+    wallCount: row.wallCount,
   }));
   const columns = columnMetadata.map((column) => ({
     xStart: shifted(column.xStart, offsetX),
     xEnd: shifted(column.xEnd, offsetX),
     centerX: shifted((column.xStart + column.xEnd) / 2, offsetX),
     height: column.height,
+    wallSpacing: column.wallSpacing,
   }));
 
   return {
@@ -480,6 +542,7 @@ export function generateGcode(config) {
     caseCount: cases.length,
     angle,
     layerCount,
+    wallCount,
     cases,
     preview: {
       angle,
@@ -487,20 +550,40 @@ export function generateGcode(config) {
       bounds: {
         minX: shifted(plateMinX, offsetX),
         maxX: shifted(plateMaxX, offsetX),
+        minY: shifted(mirrorY(plateMaxY), offsetY),
+        maxY: shifted(mirrorY(plateMinY), offsetY),
+      },
+      layoutBounds: {
+        minX: shifted(plateMinX, offsetX),
+        maxX: shifted(layoutMaxX, offsetX),
         minY: shifted(plateMinY, offsetY),
-        maxY: shifted(plateMaxY, offsetY),
+        maxY: shifted(layoutMaxY, offsetY),
       },
       rows,
       columns,
       cellStartX: shifted(cellStartX, offsetX),
       cellEndX: shifted(cellEndX, offsetX),
       baseLineWidth: flowWidth,
-      beadWidth: nozzleDiameter,
+      beadWidth: nozzleHoleDiameter,
+      nozzleTipDiameter,
+      nozzleHoleDiameter,
+      wallCount,
+      purge: {
+        xStart: shifted(purgeX, offsetX),
+        xEnd: shifted(purgeMaxX, offsetX),
+        y: shifted(mirrorY(purgeY), offsetY),
+      },
       firstLayerHeight,
       tagHeight,
       layerHeight: heights[0],
       layerCount,
       tags: absoluteTags,
+      labelMetrics: {
+        glyphHeight: angleLabel.height,
+        characterGap: angleLabel.glyphGap,
+        gapClearance: labelGapClearance,
+        readable: labelGapClearance + EPSILON >= nozzleHoleDiameter / 2,
+      },
     },
     bed: { shape: bedShape, sizeX: bedSizeX, sizeY: bedSizeY, centerX: bedCenterX, centerY: bedCenterY },
     dimensions: { width: patternWidth, height: patternHeight },
