@@ -1,16 +1,24 @@
 # Nozzle Angle Calibration
 
-A dependency-free browser tool for generating a labeled G-code matrix to study angled single-layer extrusion. Open `index.html` in a modern browser, set the angle and process-variable sweeps, then choose **Generate pattern** and **Download G-code**.
+A browser-based tool for generating downloadable G-code to test angled extrusion. The static app runs in a browser without installing packages or cloning the repository:
 
-## Pattern and assumptions
+**Live tool:** https://crispybuttermilkchickensalad.github.io/nozzle_angle_calibration/
 
-- Tilt is measured from the build-surface normal: 0° is a vertical nozzle. Each bead is a straight segment printed at one fixed rotary-axis angle.
-- Layer height, line width, and extrusion multiplier are swept independently. Each combination gets a test ID; the pattern prints the ID, `H` (height), `W` (width), `M` (multiplier), and `A` (angle) as physical, upright stroke markers. G-code comments repeat the exact values. Each range includes its end value even when the increment does not land on it.
-- The nozzle outlet is modeled as a circular rim of the entered diameter rotating about its centroid. Its downward rim projection at tilt θ is `h_min = √(r² − (r cos θ)²) = r sin θ`, where `r` is the tip radius. Generation is rejected if a tested layer height is below this clearance at any swept angle. This models exit-rim clearance only, not the full nozzle body, machine frame, deposited-bead interaction, or real motion limits.
-- Bead area is approximated as `A = (w − h)h + π(h/2)²`. Filament E is calculated from bead area, path length, extrusion multiplier, and the entered filament cross-section.
-- G-code uses millimeters, absolute XYZ, relative extrusion, and the selected rotary axis letter (default `A`). The target firmware and machine must already support/configure that axis and interpret its units as degrees. No homing, heating, machine-specific start/end code, or collision checking beyond the stated rim model is included. Inspect the file and verify machine limits before printing.
+## Configure a test
 
-The tool keeps pattern generation deterministic, preserves sweep values to six decimal places, and rejects invalid ranges, widths smaller than heights, unsupported axis letters, unsafe clearance, and patterns larger than 500 rows.
+Choose one nozzle tilt from the surface normal (0° is vertical) and one target layer height. Line width is fixed to the nozzle tip diameter. Set the number of layers to stack for each specimen, then choose a range of extrusion multipliers. Each specimen is physically labeled with its ID and multiplier; a `T` marker identifies the test tilt, and G-code comments include the complete settings.
+
+The rotary-axis choices follow the common printer convention: A rotates about X, B about Y, and C about Z. The selected axis must be enabled and interpreted as degrees by your machine firmware. The target height is repeated for each layer in a specimen. Stacking gives a taller sample when a first layer is hard to assess; it does not apply separate first-layer height compensation.
+
+## Geometry and safety
+
+- Nozzle tilt clearance models the circular outlet rim rotating around its centroid. For rim radius `r` and tilt `θ`, the downward projection is `h_min = √(r² − (r cos θ)²) = r sin θ`. Generation rejects a target layer height below this clearance.
+- The bead cross-section approximation is `A = (w − h)h + π(h/2)²`, with line width `w` equal to nozzle tip diameter and layer height `h`. Filament extrusion is calculated from bead area, path length, multiplier, and filament cross-section.
+- This is an exit-rim clearance estimate, not collision detection for the full nozzle, machine, or previously deposited geometry. G-code intentionally does not include homing, heating, machine-specific start/end code, or rotary-axis limits. Inspect it and check your machine configuration before printing.
+
+## GitHub Pages
+
+The `Deploy GitHub Pages` workflow publishes the static app on pushes to `main` and on manual dispatch. In repository **Settings → Pages**, select **GitHub Actions** as the build and deployment source. After the workflow succeeds, open the live tool linked above.
 
 ## Tests
 
