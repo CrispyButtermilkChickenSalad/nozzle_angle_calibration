@@ -473,9 +473,7 @@ export function generateGcode(config) {
   lines.push("; MATRIX LABELS | angle at upper left, heights across the top, flow percentages down the left");
   for (const tag of tags) {
     lines.push(`; ${tag.kind} label ${tag.text}${tag.kind === "flow" ? "%" : tag.kind === "height" ? " mm" : ""}`);
-    printMarker({
-      paths: tag.paths.map((path) => path.map(([x, y]) => [x + tag.x, y + tag.y])),
-    }, firstLayerHeight + tagHeight, tagHeight);
+    printMarker(tag, firstLayerHeight + tagHeight, tagHeight);
   }
 
   lines.push("");
