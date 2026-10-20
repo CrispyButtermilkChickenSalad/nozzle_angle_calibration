@@ -386,18 +386,19 @@ export function generateGcode(config) {
   const retractFeedrate = format(retractSpeed * 60, 0);
   const unretractFeedrate = format(unretractSpeed * 60, 0);
   let hasExtruded = false;
+  let currentZ = 0;
   const travelTo = (x, y, z) => {
     if (hasExtruded && retractDistance > 0) {
       if (config.firmwareRetraction) lines.push("G10");
       else lines.push(`G1 E-${format(retractDistance)} F${retractFeedrate} ; retract`);
     }
     if (zHopHeight > 0) {
-      lines.push("G91 ; relative Z-hop");
-      lines.push(`G0 Z${format(zHopHeight)} F${TRAVEL_FEEDRATE} ; lift / Z-hop`);
-      lines.push("G90 ; restore absolute positioning");
+      const hopZ = Math.max(currentZ, z) + zHopHeight;
+      lines.push(`G0 Z${format(hopZ)} F${TRAVEL_FEEDRATE} ; lift / Z-hop`);
     }
     lines.push(`G0 X${xPosition(x)} Y${yPosition(y)} F${TRAVEL_FEEDRATE}`);
     lines.push(`G0 Z${format(z)}`);
+    currentZ = z;
     if (hasExtruded && retractDistance > 0) {
       if (config.firmwareRetraction) lines.push("G11");
       else lines.push(`G1 E${format(retractDistance)} F${unretractFeedrate} ; unretract`);

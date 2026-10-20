@@ -190,17 +190,25 @@ test("prints the solid matrix base as one alternating snake", () => {
   assert.equal((baseBlock.match(/^G0 X/mg) ?? []).length, 1);
 });
 
-test("uses the configured Z-hop as a relative lift and omits zero-height hops", () => {
+test("uses the configured Z-hop without changing the extruder coordinate mode", () => {
   const standard = generateGcode({ ...defaults, zHopHeight: 0.1 }).text;
-  const hopCommands = [...standard.matchAll(/^G0 Z([\d.]+) F\d+ ; lift \/ Z-hop$/gm)];
-  assert.ok(hopCommands.length > 0);
-  assert.ok(hopCommands.every(([, height]) => Number(height) === 0.1));
-  for (const match of hopCommands) {
-    const precedingLines = standard.slice(0, match.index).trimEnd().split("\n");
-    const followingLines = standard.slice(match.index + match[0].length).trimStart().split("\n");
-    assert.equal(precedingLines.at(-1), "G91 ; relative Z-hop");
-    assert.equal(followingLines[0], "G90 ; restore absolute positioning");
+  const lines = standard.split("\n");
+  let currentZ = 0;
+  let hopCount = 0;
+  for (let index = 0; index < lines.length; index += 1) {
+    const hop = lines[index].match(/^G0 Z([\d.]+) F\d+ ; lift \/ Z-hop$/);
+    if (!hop) continue;
+    const hopZ = Number(hop[1]);
+    const nextZIndex = lines.findIndex((line, lineIndex) => lineIndex > index && /^G0 Z[\d.]+$/.test(line));
+    assert.ok(nextZIndex > index);
+    const targetZ = Number(lines[nextZIndex].slice(5));
+    assert.ok(Math.abs(hopZ - Math.max(currentZ, targetZ) - 0.1) < 1e-6);
+    currentZ = targetZ;
+    hopCount += 1;
   }
+  assert.ok(hopCount > 0);
+  assert.match(standard, /^M83 ; relative extrusion$/m);
+  assert.doesNotMatch(standard, /^G91\b|restore absolute positioning/m);
 
   const disabled = generateGcode({ ...defaults, zHopHeight: 0 }).text;
   assert.doesNotMatch(disabled, /; lift \/ Z-hop|relative Z-hop/);
