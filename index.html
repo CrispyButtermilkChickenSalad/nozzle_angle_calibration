@@ -82,16 +82,16 @@
               <legend><span class="legend-number">4</span> Layer height calibration <span class="legend-unit">MM / COLUMNS</span></legend>
               <div class="field-grid three-up">
                 <label>Minimum layer height
-                  <span class="input-wrap"><input name="layerHeightStart" type="number" min="0.1" max="10" step="0.1" value="0.30" required><span>mm</span></span>
+                  <span class="input-wrap"><input name="layerHeightStart" type="number" min="0.01" max="10" step="0.01" value="0.30" required><span>mm</span></span>
                 </label>
                 <label>Maximum layer height
-                  <span class="input-wrap"><input name="layerHeightEnd" type="number" min="0.1" max="10" step="0.1" value="0.50" required><span>mm</span></span>
+                  <span class="input-wrap"><input name="layerHeightEnd" type="number" min="0.01" max="10" step="0.01" value="0.50" required><span>mm</span></span>
                 </label>
                 <label>Height increment
-                  <span class="input-wrap"><input name="layerHeightStep" type="number" min="0.01" max="10" step="any" value="0.05" required><span>mm</span></span>
+                  <span class="input-wrap"><input name="layerHeightStep" type="number" min="0.01" max="10" step="0.01" value="0.05" required><span>mm</span></span>
                 </label>
               </div>
-              <p id="height-clearance-help" class="field-help">Minimum safe height uses physical nozzle-tip diameter; maximum is 1.5 × nozzle-hole diameter.</p>
+              <p id="height-clearance-help" class="field-help">Layer heights accept 0.01 mm increments. Minimum safe height uses physical nozzle-tip diameter; maximum is 1.5 × nozzle-hole diameter.</p>
             </fieldset>
 
             <fieldset class="last-fieldset">

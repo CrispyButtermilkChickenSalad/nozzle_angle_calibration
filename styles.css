@@ -28,6 +28,9 @@ body {
 }
 
 button, input { font: inherit; }
+input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { display: none; margin: 0; -webkit-appearance: none; }
 
 .page-shell { max-width: 1280px; padding: 0 48px; margin: 0 auto; }
 .eyebrow, .panel-index, .legend-unit, .preview-toolbar, .preview-legend, .download-label { font-family: var(--mono); }
