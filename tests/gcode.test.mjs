@@ -135,6 +135,8 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.match(result.text, /Collision-safe minimum height at this angle: 0\.141421 mm; physical nozzle tip diameter 0\.4 mm/);
   const angleLabelBlock = result.text.split("; angle label 45°\n")[1].split("; height label")[0];
   const markerMoves = angleLabelBlock.split("\n");
+  assert.doesNotMatch(angleLabelBlock, /NaN|undefined/);
+  assert.equal((angleLabelBlock.match(/^G1 X.* E/mg) ?? []).length, result.preview.tags.find((tag) => tag.kind === "angle").paths.length);
   for (let index = 0; index < markerMoves.length; index += 1) {
     if (!markerMoves[index].includes("; non-extruding move within this label")) continue;
     assert.doesNotMatch(markerMoves[index], /G0 Z|E[-\d]/);
@@ -144,6 +146,12 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.doesNotMatch(markerMoves.slice(firstMarkerExtrusion + 1).join("\n"), /retract|G10|G11|G0 Z/);
   const firstHeightLabel = result.text.split("; height label")[1].split("\n");
   assert.match(firstHeightLabel.slice(0, 8).join("\n"), /retract|G10|G11/);
+  assert.doesNotMatch(result.text, /\b(?:X|Y)NaN\b|\b(?:X|Y)undefined\b/);
+  for (const tag of result.preview.tags) {
+    const block = result.text.split(`; ${tag.kind} label ${tag.text}${tag.kind === "flow" ? "%" : tag.kind === "height" ? " mm" : ""}\n`)[1]
+      .split(/\n; (?:angle|height|flow) label |\n; TEST MATRIX/)[0];
+    assert.equal((block.match(/^G1 X.* E/mg) ?? []).length, tag.paths.length);
+  }
   assert.ok(result.dimensions.width < result.bed.sizeX);
 });
 
