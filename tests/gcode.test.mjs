@@ -118,11 +118,15 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.match(result.text, /Layer-height labels are millimeters: 0\.15 to 0\.25 mm in 0\.05 mm increments/);
   assert.match(result.text, /maximum is 1\.5 × nozzle-hole diameter/);
   assert.match(result.text, /One solid first-layer base connects the matrix labels and all test lines/);
-  assert.match(result.text, /; DOUBLE-PASS PURGE \| [\d.]+ mm each way, separate from matrix base and samples/);
+  assert.match(result.text, /; DOUBLE-PASS PURGE \| [\d.]+ mm each way at 200% flow, separate from matrix base and samples/);
   assert.match(result.text, /reposition for return purge pass without extrusion/);
   assert.match(result.text, /total\), with a [\d.]+ mm return pass/);
   const purgeBlock = result.text.split("; DOUBLE-PASS PURGE")[1].split("; SOLID MATRIX BASE")[0];
-  assert.equal((purgeBlock.match(/^G1 X.* E/mg) ?? []).length, 2);
+  const purgeExtrusions = [...purgeBlock.matchAll(/^G1 X[\d.-]+ Y[\d.-]+ E([\d.]+) F\d+$/gm)].map(([, e]) => Number(e));
+  assert.equal(purgeExtrusions.length, 2);
+  const expectedPurgeExtrusion = layerArea(defaults.firstLayerHeight, defaults.nozzleHoleDiameter)
+    * result.preview.purge.length * 2 / (Math.PI * (defaults.filamentDiameter / 2) ** 2);
+  assert.ok(purgeExtrusions.every((extrusion) => Math.abs(extrusion - expectedPurgeExtrusion) < 1e-6));
   assert.match(result.text, /; SOLID MATRIX BASE \| one connected first layer/);
   assert.match(result.text, /; CELL \| nozzle 45 deg \| layer 0\.15 mm \| flow 90%/);
   assert.match(result.text, /; CELL \| nozzle 45 deg \| layer 0\.25 mm \| flow 110%/);

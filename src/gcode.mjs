@@ -425,10 +425,10 @@ export function generateGcode(config) {
   };
 
   lines.push("");
-  lines.push(`; DOUBLE-PASS PURGE | ${format(purgeLength)} mm each way, separate from matrix base and samples`);
-  printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 1, firstLayerSpeed, 0);
+  lines.push(`; DOUBLE-PASS PURGE | ${format(purgeLength)} mm each way at 200% flow, separate from matrix base and samples`);
+  printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
   lines.push(`G0 X${xPosition(purgeMaxX)} Y${yPosition(purgeReturnY)} F${TRAVEL_FEEDRATE} ; reposition for return purge pass without extrusion`);
-  extrudeSegment(purgeMaxX, purgeReturnY, purgeX, purgeReturnY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 1, firstLayerSpeed, 0);
+  extrudeSegment(purgeMaxX, purgeReturnY, purgeX, purgeReturnY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
 
   lines.push("");
   lines.push("; SOLID MATRIX BASE | one connected first layer, no per-line skirts");
