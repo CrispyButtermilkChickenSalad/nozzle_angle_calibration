@@ -275,12 +275,6 @@
               <p class="field-help">Custom blocks are emitted only when enabled. Tokens: <code>[BED_TEMP]</code>, <code>[HOTEND_TEMP]</code>, <code>[TOOL_INDEX]</code>, <code>[EXTRUDER_NAME]</code>. Review all commands before printing.</p>
             </fieldset>
 
-            <div class="form-footer">
-              <p>Test extrusion width is fixed to nozzle-hole diameter.<br>Review generated start, end, and motion commands before printing.</p>
-              <button class="primary-button" type="submit">
-                <span>Generate matrix</span><span aria-hidden="true">↗</span>
-              </button>
-            </div>
             <p id="form-error" class="error-message" role="alert" hidden></p>
           </form>
         </section>
@@ -292,6 +286,12 @@
               <h2 id="preview-heading">3D G-code preview</h2>
             </div>
             <span id="status-badge" class="status-badge">READY</span>
+          </div>
+          <div class="form-footer">
+            <p>Test extrusion width is fixed to nozzle-hole diameter.<br>Review generated start, end, and motion commands before printing.</p>
+            <button class="primary-button" type="submit" form="calibration-form">
+              <span>Generate matrix</span><span aria-hidden="true">↗</span>
+            </button>
           </div>
           <div class="preview-wrap">
             <div class="preview-toolbar">

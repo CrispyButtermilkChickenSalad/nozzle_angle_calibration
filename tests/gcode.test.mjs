@@ -92,6 +92,10 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   const rightmostStroke = (tag) => Math.max(...tag.paths.flatMap((path) => path.map((point) => point[0])));
   assert.ok(flowLabels.every((tag) => Math.abs(rightmostStroke(tag) - rightmostStroke(flowLabels[0])) < 1e-9));
   assert.ok(result.preview.tags.every((tag) => tag.paths.length > 0));
+  const highestFlowTag = flowLabels.at(-1);
+  const highestFlowY = highestFlowTag.paths.flatMap((path) => path.map(([, y]) => y));
+  assert.ok(Math.min(...highestFlowY) >= result.preview.bounds.minY + defaults.nozzleHoleDiameter / 2);
+  assert.ok(Math.max(...highestFlowY) <= result.preview.bounds.maxY - defaults.nozzleHoleDiameter / 2);
   assert.equal(result.preview.layerCount, 3);
   assert.equal(result.preview.wallCount, 1);
   assert.equal(result.preview.angleAxis, "A");
@@ -184,6 +188,22 @@ test("prints the solid matrix base as one alternating snake", () => {
   assert.equal((baseBlock.match(/; retract$/gm) ?? []).length, 1);
   assert.equal((baseBlock.match(/; unretract$/gm) ?? []).length, 1);
   assert.equal((baseBlock.match(/^G0 X/mg) ?? []).length, 1);
+});
+
+test("uses the configured Z-hop as a relative lift and omits zero-height hops", () => {
+  const standard = generateGcode({ ...defaults, zHopHeight: 0.1 }).text;
+  const hopCommands = [...standard.matchAll(/^G0 Z([\d.]+) F\d+ ; lift \/ Z-hop$/gm)];
+  assert.ok(hopCommands.length > 0);
+  assert.ok(hopCommands.every(([, height]) => Number(height) === 0.1));
+  for (const match of hopCommands) {
+    const precedingLines = standard.slice(0, match.index).trimEnd().split("\n");
+    const followingLines = standard.slice(match.index + match[0].length).trimStart().split("\n");
+    assert.equal(precedingLines.at(-1), "G91 ; relative Z-hop");
+    assert.equal(followingLines[0], "G90 ; restore absolute positioning");
+  }
+
+  const disabled = generateGcode({ ...defaults, zHopHeight: 0 }).text;
+  assert.doesNotMatch(disabled, /; lift \/ Z-hop|relative Z-hop/);
 });
 
 test("uses Slic3r overlap spacing for three adjacent walls", () => {
