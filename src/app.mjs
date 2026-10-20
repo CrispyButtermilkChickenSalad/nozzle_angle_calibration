@@ -46,7 +46,7 @@ function renderPreview(result) {
     `Height columns run left-to-right along +X; flow rises from minimum at +Y to maximum toward -Y. Labels are ${result.preview.labelMetrics.glyphHeight.toFixed(1)} mm high with ${result.preview.labelMetrics.gapClearance.toFixed(2)} mm inter-character clearance (${spacingStatus}). Drag to orbit, scroll to zoom, use arrows and +/-; press 0 to reset.`;
   rowCount.textContent = `${result.rowCount} × ${result.columnCount} MATRIX`;
   const toolbar = document.querySelector("#layout-summary");
-  toolbar.textContent = `${result.bed.shape.toUpperCase()} BED · ${result.rowCount} FLOW ROWS × ${result.columnCount} HEIGHT COLUMNS · ${result.wallCount} WALL${result.wallCount === 1 ? "" : "S"} PER SPECIMEN · 50 MM PURGE · ${result.dimensions.width.toFixed(1)} × ${result.dimensions.height.toFixed(1)} MM · CENTERED AT ${result.bed.centerX.toFixed(1)}, ${result.bed.centerY.toFixed(1)}`;
+  toolbar.textContent = `${result.bed.shape.toUpperCase()} BED · ${result.rowCount} FLOW ROWS × ${result.columnCount} HEIGHT COLUMNS · ${result.wallCount} WALL${result.wallCount === 1 ? "" : "S"} PER SPECIMEN · ${result.preview.purge.length.toFixed(1)} MM DOUBLE-PASS PURGE · ${result.dimensions.width.toFixed(1)} × ${result.dimensions.height.toFixed(1)} MM · CENTERED AT ${result.bed.centerX.toFixed(1)}, ${result.bed.centerY.toFixed(1)}`;
   document.querySelector("#preview-code").textContent = result.text;
   statusBadge.textContent = "PATTERN READY";
   statusBadge.classList.add("is-ready");

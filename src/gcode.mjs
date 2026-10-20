@@ -2,7 +2,6 @@ const MAX_RANGE_VALUES = 100;
 const MAX_TEST_CELLS = 100;
 const MAX_PRINTED_LAYERS = 500;
 const MAX_LAYERS_PER_SPECIMEN = 10;
-const PURGE_LENGTH = 50;
 const TRAVEL_FEEDRATE = 6000;
 const EPSILON = 1e-9;
 
@@ -124,9 +123,9 @@ const SEGMENTS = {
 };
 
 function markerSegments(text, nozzleHoleDiameter) {
-  const height = Math.max(nozzleHoleDiameter * 8, 2.4);
+  const height = Math.max(nozzleHoleDiameter * 10, 3.2);
   const scale = height / 2;
-  const glyphGap = Math.max(nozzleHoleDiameter * 1.5, 0.4);
+  const glyphGap = Math.max(nozzleHoleDiameter * 1.75, 0.5);
   const paths = [];
   const width = 1.2 * scale;
   let cursor = 0;
@@ -282,11 +281,14 @@ export function generateGcode(config) {
   const plateMaxX = firstColumnCenter + (heights.length - 0.5) * columnPitch;
   const plateMinY = 0.5;
   const plateMaxY = rowYs.at(-1) + 1.7;
+  const purgeLength = Math.max(plateMaxX - plateMinX, plateMaxY - plateMinY);
+  const purgeRowSpacing = nozzleHoleDiameter * 2;
   const purgeX = plateMinX;
   const purgeY = plateMaxY + nozzleHoleDiameter / 2 + 4;
-  const purgeMaxX = purgeX + PURGE_LENGTH;
+  const purgeMaxX = purgeX + purgeLength;
+  const purgeReturnY = purgeY + purgeRowSpacing;
   const layoutMaxX = Math.max(plateMaxX, purgeMaxX + nozzleHoleDiameter / 2);
-  const layoutMaxY = purgeY + nozzleHoleDiameter / 2;
+  const layoutMaxY = purgeReturnY + nozzleHoleDiameter / 2;
   const patternWidth = layoutMaxX - plateMinX;
   const patternHeight = layoutMaxY - plateMinY;
   const includedParts = "solid matrix base, labels, test lines, and purge line";
@@ -338,7 +340,7 @@ export function generateGcode(config) {
     `; Adjacent center spacing = extrusion width - layer height * (1 - pi/4); walls overlap nominally to avoid gaps.`,
     `; Travel feedrate fixed at ${TRAVEL_FEEDRATE} mm/min.`,
     `; Retract ${format(retractDistance)} mm at ${format(retractSpeed)} mm/s; Z-hop ${format(zHopHeight)} mm.`,
-    `; Purge line length ${PURGE_LENGTH} mm, printed before the base.`,
+    `; Purge path length ${format(purgeLength)} mm per pass (${format(purgeLength * 2)} mm total), with a ${format(purgeRowSpacing)} mm return pass, printed before the base.`,
     `; Pressure advance ${config.usePressureAdvance ? `fixed at ${format(pressureAdvance)}` : "left to firmware configuration"}.`,
     "; Review firmware support, bed limits, start/end macros, and nozzle clearance before printing.",
     "G21 ; units in mm",
@@ -399,25 +401,34 @@ export function generateGcode(config) {
       else lines.push(`G1 E${format(retractDistance)} F${unretractFeedrate} ; unretract`);
     }
   };
-  const printSegment = (x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt) => {
-    travelTo(x1, y1, z);
+  const extrudeSegment = (x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt) => {
     lines.push(`G1 ${angleAxis}${format(tilt, 1)} F${TRAVEL_FEEDRATE}`);
     const e = extrusionPerMm(height, width, multiplier, filamentDiameter) * Math.hypot(x2 - x1, y2 - y1);
     lines.push(`G1 X${xPosition(x2)} Y${yPosition(y2)} E${format(e, 8)} F${format(feedrate * 60, 0)}`);
     hasExtruded = true;
   };
+  const printSegment = (x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt) => {
+    travelTo(x1, y1, z);
+    extrudeSegment(x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt);
+  };
   const printMarker = (tag, z, height) => {
-    for (const path of tag.paths) {
-      printSegment(
-        path[0][0], path[0][1], path[1][0], path[1][1],
+    lines.push(`; Continuous marker strokes for ${tag.text}; travel within this label has no retract or Z-hop.`);
+    tag.paths.forEach((path, index) => {
+      const [start, end] = path;
+      if (index === 0) travelTo(start[0] + tag.x, start[1] + tag.y, z);
+      else lines.push(`G0 X${xPosition(start[0] + tag.x)} Y${yPosition(start[1] + tag.y)} F${TRAVEL_FEEDRATE} ; non-extruding move within this label`);
+      extrudeSegment(
+        start[0] + tag.x, start[1] + tag.y, end[0] + tag.x, end[1] + tag.y,
         z, height, nozzleHoleDiameter, 1, firstLayerSpeed, 0,
       );
-    }
+    });
   };
 
   lines.push("");
-  lines.push("; 50 MM PURGE LINE | separate from the matrix base and samples, before printing the base");
+  lines.push(`; DOUBLE-PASS PURGE | ${format(purgeLength)} mm each way, separate from matrix base and samples`);
   printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 1, firstLayerSpeed, 0);
+  lines.push(`G0 X${xPosition(purgeMaxX)} Y${yPosition(purgeReturnY)} F${TRAVEL_FEEDRATE} ; reposition for return purge pass without extrusion`);
+  extrudeSegment(purgeMaxX, purgeReturnY, purgeX, purgeReturnY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 1, firstLayerSpeed, 0);
 
   lines.push("");
   lines.push("; SOLID MATRIX BASE | one connected first layer, no per-line skirts");
@@ -572,6 +583,8 @@ export function generateGcode(config) {
         xStart: shifted(purgeX, offsetX),
         xEnd: shifted(purgeMaxX, offsetX),
         y: shifted(mirrorY(purgeY), offsetY),
+        returnY: shifted(mirrorY(purgeReturnY), offsetY),
+        length: purgeLength,
       },
       firstLayerHeight,
       tagHeight,

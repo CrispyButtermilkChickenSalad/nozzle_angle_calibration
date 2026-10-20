@@ -180,6 +180,16 @@ export function createScenePreview(canvas) {
         layout.beadWidth,
         colors,
       );
+      addSegment(
+        layout.purge.xEnd,
+        layout.purge.returnY,
+        layout.purge.xStart,
+        layout.purge.returnY,
+        0,
+        layout.firstLayerHeight,
+        layout.beadWidth,
+        colors,
+      );
     }
 
     for (const tag of layout.tags) {

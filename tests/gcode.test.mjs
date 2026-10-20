@@ -97,10 +97,16 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.equal(result.preview.angleAxis, "A");
   assert.equal(result.preview.firstLayerHeight, defaults.firstLayerHeight);
   assert.equal(result.preview.tagHeight, defaults.layerHeightStart);
-  assert.ok(result.preview.labelMetrics.glyphHeight >= 8 * defaults.nozzleHoleDiameter);
+  assert.ok(result.preview.labelMetrics.glyphHeight >= 10 * defaults.nozzleHoleDiameter);
   assert.ok(result.preview.labelMetrics.gapClearance >= defaults.nozzleHoleDiameter * 0.5);
   assert.equal(result.preview.labelMetrics.readable, true);
-  assert.ok(Math.abs(result.preview.purge.xEnd - result.preview.purge.xStart - 50) < 1e-9);
+  assert.ok(Math.abs(
+    result.preview.purge.xEnd - result.preview.purge.xStart - result.preview.purge.length,
+  ) < 1e-9);
+  assert.ok(result.preview.purge.length >= result.preview.bounds.maxX - result.preview.bounds.minX - defaults.nozzleHoleDiameter);
+  assert.ok(Math.abs(
+    Math.abs(result.preview.purge.returnY - result.preview.purge.y) - 2 * result.preview.beadWidth,
+  ) < 1e-9);
   assert.ok(Math.abs(
     result.preview.bounds.minY - result.preview.purge.y - result.preview.beadWidth / 2 - 4,
   ) < 1e-9);
@@ -112,7 +118,11 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.match(result.text, /Layer-height labels are millimeters: 0\.15 to 0\.25 mm in 0\.05 mm increments/);
   assert.match(result.text, /maximum is 1\.5 × nozzle-hole diameter/);
   assert.match(result.text, /One solid first-layer base connects the matrix labels and all test lines/);
-  assert.match(result.text, /; 50 MM PURGE LINE \| separate from the matrix base and samples/);
+  assert.match(result.text, /; DOUBLE-PASS PURGE \| [\d.]+ mm each way, separate from matrix base and samples/);
+  assert.match(result.text, /reposition for return purge pass without extrusion/);
+  assert.match(result.text, /total\), with a [\d.]+ mm return pass/);
+  const purgeBlock = result.text.split("; DOUBLE-PASS PURGE")[1].split("; SOLID MATRIX BASE")[0];
+  assert.equal((purgeBlock.match(/^G1 X.* E/mg) ?? []).length, 2);
   assert.match(result.text, /; SOLID MATRIX BASE \| one connected first layer/);
   assert.match(result.text, /; CELL \| nozzle 45 deg \| layer 0\.15 mm \| flow 90%/);
   assert.match(result.text, /; CELL \| nozzle 45 deg \| layer 0\.25 mm \| flow 110%/);
@@ -123,6 +133,17 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.equal((result.text.match(/G1 A45/g) ?? []).length, 45);
   assert.match(result.text, /height columns increase left-to-right \(\+X\); minimum flow is at \+Y, increasing flow runs toward -Y/);
   assert.match(result.text, /Collision-safe minimum height at this angle: 0\.141421 mm; physical nozzle tip diameter 0\.4 mm/);
+  const angleLabelBlock = result.text.split("; angle label 45°\n")[1].split("; height label")[0];
+  const markerMoves = angleLabelBlock.split("\n");
+  for (let index = 0; index < markerMoves.length; index += 1) {
+    if (!markerMoves[index].includes("; non-extruding move within this label")) continue;
+    assert.doesNotMatch(markerMoves[index], /G0 Z|E[-\d]/);
+    assert.doesNotMatch(markerMoves[index + 1], /retract|G10|G11/);
+  }
+  const firstMarkerExtrusion = markerMoves.findIndex((line) => /^G1 X.* E/.test(line));
+  assert.doesNotMatch(markerMoves.slice(firstMarkerExtrusion + 1).join("\n"), /retract|G10|G11|G0 Z/);
+  const firstHeightLabel = result.text.split("; height label")[1].split("\n");
+  assert.match(firstHeightLabel.slice(0, 8).join("\n"), /retract|G10|G11/);
   assert.ok(result.dimensions.width < result.bed.sizeX);
 });
 
