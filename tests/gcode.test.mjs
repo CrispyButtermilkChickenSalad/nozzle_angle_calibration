@@ -155,6 +155,33 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.ok(result.dimensions.width < result.bed.sizeX);
 });
 
+test("prints the solid matrix base as one alternating snake", () => {
+  const result = generateGcode(defaults);
+  const baseBlock = result.text.split("; SOLID MATRIX BASE")[1].split("; MATRIX LABELS")[0];
+  const extrusionMoves = [...baseBlock.matchAll(/^G1 X([\d.-]+) Y([\d.-]+) E[\d.]+ F\d+$/gm)]
+    .map(([, x, y]) => ({ x: Number(x), y: Number(y) }));
+  assert.ok(extrusionMoves.length > 3);
+  assert.equal(extrusionMoves.length % 2, 1);
+  const rowCount = (extrusionMoves.length + 1) / 2;
+  for (let row = 0; row < rowCount; row += 1) {
+    const end = extrusionMoves[row * 2];
+    if (row > 0) {
+      const previousEnd = extrusionMoves[(row - 1) * 2];
+      assert.ok(row % 2 === 0 ? end.x > previousEnd.x : end.x < previousEnd.x, `base row ${row + 1} should alternate direction`);
+    }
+    if (row < rowCount - 1) {
+      const connector = extrusionMoves[row * 2 + 1];
+      assert.ok(Math.abs(connector.x - end.x) < 1e-6, `connector ${row + 1} should stay at the row endpoint`);
+      assert.ok(Math.abs(connector.y - end.y) > 0, `connector ${row + 1} should join adjacent rows`);
+      assert.ok(Math.abs(extrusionMoves[(row + 1) * 2].y - connector.y) < 1e-6, `base row ${row + 2} should start at its connector`);
+    }
+  }
+  assert.equal((baseBlock.match(/lift \/ Z-hop/g) ?? []).length, 1);
+  assert.equal((baseBlock.match(/; retract$/gm) ?? []).length, 1);
+  assert.equal((baseBlock.match(/; unretract$/gm) ?? []).length, 1);
+  assert.equal((baseBlock.match(/^G0 X/mg) ?? []).length, 1);
+});
+
 test("uses Slic3r overlap spacing for three adjacent walls", () => {
   const result = generateGcode({ ...defaults, threeWallSpecimens: true, layerCount: 1 });
   const expectedSpacing = 0.4 - 0.15 * (1 - Math.PI / 4);
