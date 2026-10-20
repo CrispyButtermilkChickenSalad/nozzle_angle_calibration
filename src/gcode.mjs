@@ -280,7 +280,8 @@ export function generateGcode(config) {
   const plateMinX = 0.5;
   const plateMaxX = firstColumnCenter + (heights.length - 0.5) * columnPitch;
   const plateMinY = 0.5;
-  const plateMaxY = rowYs.at(-1) + 1.7;
+  const lastFlowLabel = flowLabels.at(-1);
+  const plateMaxY = rowYs.at(-1) + lastFlowLabel.height / 2 + nozzleHoleDiameter + 0.5;
   const purgeLength = Math.max(plateMaxX - plateMinX, plateMaxY - plateMinY);
   const purgeRowSpacing = nozzleHoleDiameter * 2;
   const purgeX = plateMinX;
@@ -315,9 +316,6 @@ export function generateGcode(config) {
   const mirrorY = (value) => plateMinY + layoutMaxY - value;
   const yPosition = (value) => format(mirrorY(value) + offsetY);
   const tagHeight = heights[0];
-  const maximumHeight = heights.at(-1);
-  const lastLayerZ = firstLayerHeight + layerCount * maximumHeight;
-  const clearanceZ = lastLayerZ + Math.max(nozzleTipDiameter, 1) + zHopHeight;
   const labelGapClearance = Math.min(...[angleLabel, ...flowLabels, ...layerLabels].map((label) => label.gapClearance));
   const lines = [
     "; Nozzle angle calibration test matrix",
@@ -393,7 +391,11 @@ export function generateGcode(config) {
       if (config.firmwareRetraction) lines.push("G10");
       else lines.push(`G1 E-${format(retractDistance)} F${retractFeedrate} ; retract`);
     }
-    lines.push(`G0 Z${format(clearanceZ)} F${TRAVEL_FEEDRATE} ; lift / Z-hop`);
+    if (zHopHeight > 0) {
+      lines.push("G91 ; relative Z-hop");
+      lines.push(`G0 Z${format(zHopHeight)} F${TRAVEL_FEEDRATE} ; lift / Z-hop`);
+      lines.push("G90 ; restore absolute positioning");
+    }
     lines.push(`G0 X${xPosition(x)} Y${yPosition(y)} F${TRAVEL_FEEDRATE}`);
     lines.push(`G0 Z${format(z)}`);
     if (hasExtruded && retractDistance > 0) {
