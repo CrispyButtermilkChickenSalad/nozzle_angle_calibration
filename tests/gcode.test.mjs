@@ -118,11 +118,15 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.match(result.text, /Layer-height labels are millimeters: 0\.15 to 0\.25 mm in 0\.05 mm increments/);
   assert.match(result.text, /maximum is 1\.5 × nozzle-hole diameter/);
   assert.match(result.text, /One solid first-layer base connects the matrix labels and all test lines/);
-  assert.match(result.text, /; DOUBLE-PASS PURGE \| [\d.]+ mm each way, separate from matrix base and samples/);
+  assert.match(result.text, /; DOUBLE-PASS PURGE \| [\d.]+ mm each way at 200% flow, separate from matrix base and samples/);
   assert.match(result.text, /reposition for return purge pass without extrusion/);
   assert.match(result.text, /total\), with a [\d.]+ mm return pass/);
   const purgeBlock = result.text.split("; DOUBLE-PASS PURGE")[1].split("; SOLID MATRIX BASE")[0];
-  assert.equal((purgeBlock.match(/^G1 X.* E/mg) ?? []).length, 2);
+  const purgeExtrusions = [...purgeBlock.matchAll(/^G1 X[\d.-]+ Y[\d.-]+ E([\d.]+) F\d+$/gm)].map(([, e]) => Number(e));
+  assert.equal(purgeExtrusions.length, 2);
+  const expectedPurgeExtrusion = layerArea(defaults.firstLayerHeight, defaults.nozzleHoleDiameter)
+    * result.preview.purge.length * 2 / (Math.PI * (defaults.filamentDiameter / 2) ** 2);
+  assert.ok(purgeExtrusions.every((extrusion) => Math.abs(extrusion - expectedPurgeExtrusion) < 1e-6));
   assert.match(result.text, /; SOLID MATRIX BASE \| one connected first layer/);
   assert.match(result.text, /; CELL \| nozzle 45 deg \| layer 0\.15 mm \| flow 90%/);
   assert.match(result.text, /; CELL \| nozzle 45 deg \| layer 0\.25 mm \| flow 110%/);
@@ -153,6 +157,33 @@ test("generates deterministic test order, readable labels, purge, and safe defau
     assert.equal((block.match(/^G1 X.* E/mg) ?? []).length, tag.paths.length);
   }
   assert.ok(result.dimensions.width < result.bed.sizeX);
+});
+
+test("prints the solid matrix base as one alternating snake", () => {
+  const result = generateGcode(defaults);
+  const baseBlock = result.text.split("; SOLID MATRIX BASE")[1].split("; MATRIX LABELS")[0];
+  const extrusionMoves = [...baseBlock.matchAll(/^G1 X([\d.-]+) Y([\d.-]+) E[\d.]+ F\d+$/gm)]
+    .map(([, x, y]) => ({ x: Number(x), y: Number(y) }));
+  assert.ok(extrusionMoves.length > 3);
+  assert.equal(extrusionMoves.length % 2, 1);
+  const rowCount = (extrusionMoves.length + 1) / 2;
+  for (let row = 0; row < rowCount; row += 1) {
+    const end = extrusionMoves[row * 2];
+    if (row > 0) {
+      const previousEnd = extrusionMoves[(row - 1) * 2];
+      assert.ok(row % 2 === 0 ? end.x > previousEnd.x : end.x < previousEnd.x, `base row ${row + 1} should alternate direction`);
+    }
+    if (row < rowCount - 1) {
+      const connector = extrusionMoves[row * 2 + 1];
+      assert.ok(Math.abs(connector.x - end.x) < 1e-6, `connector ${row + 1} should stay at the row endpoint`);
+      assert.ok(Math.abs(connector.y - end.y) > 0, `connector ${row + 1} should join adjacent rows`);
+      assert.ok(Math.abs(extrusionMoves[(row + 1) * 2].y - connector.y) < 1e-6, `base row ${row + 2} should start at its connector`);
+    }
+  }
+  assert.equal((baseBlock.match(/lift \/ Z-hop/g) ?? []).length, 1);
+  assert.equal((baseBlock.match(/; retract$/gm) ?? []).length, 1);
+  assert.equal((baseBlock.match(/; unretract$/gm) ?? []).length, 1);
+  assert.equal((baseBlock.match(/^G0 X/mg) ?? []).length, 1);
 });
 
 test("uses Slic3r overlap spacing for three adjacent walls", () => {

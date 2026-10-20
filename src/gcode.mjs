@@ -425,25 +425,40 @@ export function generateGcode(config) {
   };
 
   lines.push("");
-  lines.push(`; DOUBLE-PASS PURGE | ${format(purgeLength)} mm each way, separate from matrix base and samples`);
-  printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 1, firstLayerSpeed, 0);
+  lines.push(`; DOUBLE-PASS PURGE | ${format(purgeLength)} mm each way at 200% flow, separate from matrix base and samples`);
+  printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
   lines.push(`G0 X${xPosition(purgeMaxX)} Y${yPosition(purgeReturnY)} F${TRAVEL_FEEDRATE} ; reposition for return purge pass without extrusion`);
-  extrudeSegment(purgeMaxX, purgeReturnY, purgeX, purgeReturnY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 1, firstLayerSpeed, 0);
+  extrudeSegment(purgeMaxX, purgeReturnY, purgeX, purgeReturnY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
 
   lines.push("");
   lines.push("; SOLID MATRIX BASE | one connected first layer, no per-line skirts");
+  lines.push("; Base infill is one continuous snake: alternate row direction and extrude the edge connectors.");
   lines.push(fanCommand(firstLayerFan));
   const baseStartX = plateMinX + flowWidth / 2;
   const baseEndX = plateMaxX - flowWidth / 2;
   const baseSpanY = plateMaxY - plateMinY - flowWidth;
   const baseRowCount = Math.max(1, Math.ceil(baseSpanY / (flowWidth * 0.92)) + 1);
   const baseRowSpacing = baseRowCount === 1 ? 0 : baseSpanY / (baseRowCount - 1);
+  let previousEndX = null;
+  let previousY = null;
   for (let index = 0; index < baseRowCount; index += 1) {
     const y = plateMinY + flowWidth / 2 + index * baseRowSpacing;
-    printSegment(
-      baseStartX, y, baseEndX, y,
+    const startX = index % 2 === 0 ? baseStartX : baseEndX;
+    const endX = index % 2 === 0 ? baseEndX : baseStartX;
+    if (index === 0) {
+      travelTo(startX, y, firstLayerHeight);
+    } else {
+      extrudeSegment(
+        previousEndX, previousY, startX, y,
+        firstLayerHeight, firstLayerHeight, flowWidth, 1, firstLayerSpeed, 0,
+      );
+    }
+    extrudeSegment(
+      startX, y, endX, y,
       firstLayerHeight, firstLayerHeight, flowWidth, 1, firstLayerSpeed, 0,
     );
+    previousEndX = endX;
+    previousY = y;
   }
 
   const tags = [
