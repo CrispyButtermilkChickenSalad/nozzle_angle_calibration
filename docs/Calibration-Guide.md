@@ -8,14 +8,34 @@ Each matrix cell combines one layer height with one extrusion-flow percentage. T
 
 ## Nozzle orientation and matrix alignment
 
-The orientation setting describes the nozzle tilt relative to the direction of bead deposition:
+The orientation setting describes which way the nozzle body leans relative to the bead being deposited. In the sketches below, the bead is already laid to the left of the nozzle tip, and the arrow shows the upcoming bead path. The nozzle body extends from the tip in the direction of its lean.
 
-- **Trailing edge** tilts away from the deposited bead. This is the default because it reduces collision risk and keeps printing simpler.
-- **Leading edge** tilts toward the deposited bead. It can help with complex geometry and acute angles of attack, but may affect print quality and mechanical performance.
-- **Adjacent** tilts 90° to the bead direction for clearance around printed features.
-- **Hybrid: trailing / adjacent** and **hybrid: leading / adjacent** rotate the matrix halfway between those named orientations.
+```text
+                           upcoming bead path →
 
-The generator rotates the complete matrix, including its base, labels, purge passes, and specimens, around the configured bed center to align bead direction with the selected rotary axis. The configured positive tilt is kept, while the matrix direction changes to place the nozzle tilt toward, away from, or beside the bead as selected. Bed-fit checks use the rotated footprint. A/B axes are treated as tilt axes about X/Y, following the conventional right-handed direction (positive A tilts toward -Y; positive B toward +X). Firmware may invert an axis, so verify its direction before printing. C is a Z-axis rotation and cannot physically tilt a nozzle; with C selected, the matrix rotation is only a layout reference and the generated C command does not represent a real nozzle tilt.
+  deposited bead       nozzle lean
+  ███████████●             ╲  trailing edge: body leans away from deposited bead
+  ███████████●             ╱  leading edge: body leans back toward deposited bead
+  ███████████●             ↑  adjacent: body leans 90° to bead direction
+                            ↗  trailing/adjacent hybrid: halfway between ╲ and ↑
+                            ↖  leading/adjacent hybrid: halfway between ╱ and ↑
+```
+
+| Orientation | Relationship to the bead | Why choose it |
+| --- | --- | --- |
+| **Trailing edge** (default) | The nozzle body leans away from the deposited extrusion. | A conservative starting orientation: less chance of the nozzle body colliding with the bead behind the tip and simpler printing. |
+| **Leading edge** | The nozzle body leans toward the deposited extrusion. | Can provide access for complex geometry and acute angles of attack. The nozzle presses/approaches from the deposited-bead side, so print quality and mechanical performance may be affected; use when geometry requires it and inspect the result. |
+| **Adjacent** | The nozzle leans 90° to the bead direction. | Offers clearance beside printed features when leaning either with or against the bead path is obstructed. |
+| **Hybrid: trailing / adjacent** | Exactly halfway between trailing edge and adjacent. | Compromise when trailing orientation is obstructed but a full 90° adjacent lean is unnecessary. |
+| **Hybrid: leading / adjacent** | Exactly halfway between leading edge and adjacent. | Compromise between the leading-edge access direction and side clearance. |
+
+“Hybrid” means the midpoint of the **matrix heading** between the two named orientations. It does not halve the configured nozzle tilt angle: the tilt magnitude remains the same in every orientation. These five choices are available in the orientation cards as well as the selector; each card uses the same bead direction and shows the nozzle tip and leaning body, so the body’s direction can be compared directly.
+
+Most multi-axis printers have only one additional rotary axis. The generator therefore uses the selected firmware rotary axis to determine the bead heading and rotates the **entire matrix**—specimens, base, labels, and purge passes—around the configured bed center. It does not require independent rotation axes for each sample. The configured positive nozzle tilt is retained; selecting an orientation turns the complete pattern so that the tilt is toward, away from, or beside the deposited bead as described above. Bed-fit checks use the rotated pattern footprint.
+
+For A about X and B about Y, the generator assumes the conventional right-handed direction: positive A tilts toward -Y and positive B toward +X. Firmware configuration can reverse an axis, so verify axis direction and the first generated motion against your machine before printing. C rotates about Z and cannot physically tilt a nozzle; selecting C can rotate the matrix layout, but the generated C-axis command is not a real nozzle tilt. Use A or B when the printer’s tilt mechanism is configured on one of those axes.
+
+The orientation changes the collision geometry, but does not change the existing clearance calculation into a full collision model. That calculation approximates the circular nozzle rim only; it cannot account for the nozzle body, carriage, pivot offsets, adjacent printed features, or firmware kinematics. In particular, leading-edge and adjacent setups may need more clearance than the calculated minimum. Start cautiously, check the bed and nozzle paths, and increase the layer-height minimum if the hardware requires it.
 
 The matrix itself is a single solid first-layer base whose fill uses a continuous snake path: each row alternates direction and an extruded connector joins it to the next row at the edge. This avoids a retract, Z-hop, and non-extruding traverse for every base line. The base extends beyond the complete stroke footprint of the final flow label so that the highest-flow marker is supported rather than printed beyond the base edge. Raised seven-segment labels identify the tilt angle, layer heights, and flow percentages; flow labels are right-aligned by their last digit. Each number's strokes are extruded as a continuous sequence: the nozzle travels between strokes without extrusion, retraction, or Z-hop, then retracts/lifts only when moving to the next complete label. This can leave fine strings within a number, but avoids repeatedly interrupting extrusion on every short stroke. The flow rows have extra Y spacing to make labels and specimens easier to distinguish. A separate double-pass purge path is printed 4 mm clear of the matrix base and samples before the base; each pass matches the longest matrix dimension and the return pass runs alongside the first, with centerlines 2× nozzle-hole diameter apart. Both passes use 200% extrusion flow to increase overlap. The purge is a distinct yellow element in the preview. There are no per-specimen skirts.
 
