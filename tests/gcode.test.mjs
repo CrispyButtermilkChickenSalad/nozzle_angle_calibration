@@ -62,7 +62,9 @@ test("calculates capsule area and nozzle-rim clearance from physical tip diamete
   assert.ok(Math.abs(layerArea(0.2, 0.4) - expectedArea) < 1e-12);
   assert.equal(minimumLayerHeight(0.4, 0), 0);
   assert.ok(Math.abs(minimumLayerHeight(0.4, 30) - 0.1) < 1e-12);
+  assert.equal(minimumLayerHeight(0.4, -30), minimumLayerHeight(0.4, 30));
   assert.ok(Math.abs(minimumLayerHeight(0.4, 45) - 0.1414213562373095) < 1e-12);
+  assert.equal(minimumLayerHeight(0.4, -45), minimumLayerHeight(0.4, 45));
 
   const independentDiameters = generateGcode({
     ...defaults,
@@ -144,6 +146,43 @@ test("orients the complete matrix and bead direction for each rotary axis", () =
   assert.throws(
     () => generateGcode({ ...defaults, bedSizeX: 50, bedSizeY: 50 }),
     /does not fit the 50 × 50 mm rectangular bed/,
+  );
+});
+
+test("rotates the matrix 180 degrees for negative tilt while preserving orientation", () => {
+  for (const angleAxis of ["A", "B"]) {
+    for (const nozzleOrientation of ["trailing", "leading", "adjacent", "hybrid-trailing", "hybrid-leading"]) {
+      const positive = generateGcode({ ...defaults, angleAxis, nozzleOrientation, angleDegrees: 45 });
+      const negative = generateGcode({ ...defaults, angleAxis, nozzleOrientation, angleDegrees: -45 });
+      assert.equal((negative.preview.rotationDegrees - positive.preview.rotationDegrees + 360) % 360, 180);
+      assert.match(negative.text, new RegExp(`G1 ${angleAxis}-45 F6000`));
+      assert.match(negative.text, new RegExp(`; Nozzle tilt -45 degrees from vertical`));
+      assert.match(negative.text, new RegExp(`Nozzle orientation: .*matrix heading ${negative.preview.rotationDegrees}°;`));
+      assert.equal(negative.preview.orientationLabel, positive.preview.orientationLabel);
+
+      const positiveCoordinates = emittedBedCoordinates(positive.text);
+      const negativeCoordinates = emittedBedCoordinates(negative.text);
+      assert.ok(negativeCoordinates.every(([x, y]) => x >= 0 && x <= defaults.bedSizeX
+        && y >= 0 && y <= defaults.bedSizeY), `${angleAxis} ${nozzleOrientation} negative tilt stays within the bed`);
+      assert.notDeepEqual(negativeCoordinates, positiveCoordinates);
+    }
+  }
+
+  assert.throws(
+    () => generateGcode({ ...defaults, angleDegrees: -89.01 }),
+    /Nozzle angle must be between -89 and \+89 degrees/,
+  );
+  for (const angleDegrees of [-89, 89]) {
+    assert.doesNotThrow(() => generateGcode({
+      ...defaults,
+      angleDegrees,
+      layerHeightStart: 0.21,
+      layerHeightEnd: 0.21,
+    }), `${angleDegrees}° is within the supported tilt range`);
+  }
+  assert.throws(
+    () => minimumLayerHeight(defaults.nozzleTipDiameter, -90),
+    /between -90° and \+90°/,
   );
 });
 

@@ -32,10 +32,11 @@
             <fieldset>
               <legend><span class="legend-number">1</span> Nozzle tilt <span class="legend-unit">SINGLE TARGET / DEGREES</span></legend>
               <div class="field-grid">
-                <label>Nozzle tilt from vertical
-                  <span class="input-wrap"><input name="angleDegrees" type="number" min="0" max="89" step="any" value="45" required><span>°</span></span>
+                <label>Nozzle tilt from vertical <span class="optional-label">SIGNED / −89° TO +89°</span>
+                  <span class="input-wrap"><input name="angleDegrees" type="number" min="-89" max="89" step="any" value="45" required><span>°</span></span>
                 </label>
               </div>
+              <p class="field-help">Positive and negative values tilt in opposite directions about the selected rotary axis. The orientation setting is preserved by automatically rotating the matrix 180° when the tilt sign is negative. At 0°, the nozzle is upright and orientation has no effect.</p>
             </fieldset>
 
             <fieldset>

@@ -13,9 +13,10 @@ export function minimumLayerHeight(nozzleTipDiameter, tiltDegrees) {
   if (!Number.isFinite(nozzleTipDiameter) || nozzleTipDiameter <= 0) {
     throw new Error("Nozzle tip diameter must be greater than zero.");
   }
-  if (!Number.isFinite(tiltDegrees) || tiltDegrees < 0 || tiltDegrees >= 90) {
-    throw new Error("Nozzle tilt must be at least 0° and less than 90°.");
+  if (!Number.isFinite(tiltDegrees) || Math.abs(tiltDegrees) >= 90) {
+    throw new Error("Nozzle tilt must be between -90° and +90°, exclusive.");
   }
+  tiltDegrees = Math.abs(tiltDegrees);
   const radius = nozzleTipDiameter / 2;
   const horizontalProjection = radius * Math.cos(tiltDegrees * Math.PI / 180);
   return Math.sqrt(Math.max(0, radius ** 2 - horizontalProjection ** 2));
@@ -72,7 +73,8 @@ function orientationForAxis(axis, orientation, angle) {
     throw new Error("Choose trailing edge, leading edge, adjacent, or a hybrid nozzle orientation.");
   }
   const setting = orientationSettings[orientation];
-  const rotationDegrees = angle === 0 ? 0 : ((setting.heading % 360) + 360) % 360;
+  const heading = setting.heading + (angle < 0 ? 180 : 0);
+  const rotationDegrees = angle === 0 ? 0 : ((heading % 360) + 360) % 360;
   return { ...setting, rotationDegrees, neutral: angle === 0 };
 }
 
@@ -120,7 +122,7 @@ function createCases(config, clearance, nozzleHoleDiameter) {
   );
   const layerCount = numeric(config.layerCount, "Stacked layer count");
 
-  if (angle < 0 || angle > 89) throw new Error("Nozzle angle must be between 0 and 89 degrees.");
+  if (Math.abs(angle) > 89) throw new Error("Nozzle angle must be between -89 and +89 degrees.");
   for (const height of heights) {
     if (height + EPSILON < clearance) {
       throw new Error(`Minimum layer height ${format(height)} mm is below the collision-safe minimum ${format(clearance)} mm at ${format(angle, 1)}° tilt.`);
@@ -386,7 +388,7 @@ export function generateGcode(config) {
     `; Print order: complete each layer-height column from minimum to maximum; flow increases within each column.`,
     `; Nozzle tilt ${format(angle, 1)} degrees from vertical; rotary axis ${angleAxis} rotates about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}.`,
     `; Selected rotary axis: ${angleAxis} (rotation about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}).`,
-    `; Nozzle orientation: ${orientationSettings.neutral ? `${orientationSettings.label} (no effect at 0° tilt)` : orientationSettings.label}; specimen tilt command is ${format(angle, 1)}° on the selected rotary axis.`,
+    `; Nozzle orientation: ${orientationSettings.neutral ? `${orientationSettings.label} (no effect at 0° tilt)` : orientationSettings.label}; matrix heading ${format(orientationSettings.rotationDegrees, 1)}°; specimen tilt command is ${format(angle, 1)}° on the selected rotary axis.`,
     ...(angleAxis === "C" ? ["; C rotates about Z and cannot physically tilt the nozzle; orientation is only a matrix layout reference."] : []),
     `; Flow labels are percentages: ${format(flows[0], 3)}% to ${format(flows.at(-1), 3)}% in ${format(numeric(config.flowStepPercent, "Flow increment"), 3)}% increments.`,
     `; Layer-height labels are millimeters: ${format(heights[0])} to ${format(heights.at(-1))} mm in ${format(numeric(config.layerHeightStep, "Layer-height increment"))} mm increments; maximum is 1.5 × nozzle-hole diameter.`,

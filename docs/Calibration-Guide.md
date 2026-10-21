@@ -10,6 +10,8 @@ Each matrix cell combines one layer height with one extrusion-flow percentage. T
 
 The orientation setting describes which way the nozzle body leans relative to the bead being deposited. In the sketches below, the bead is already laid to the left of the nozzle tip, and the arrow shows the upcoming bead path. The nozzle body extends from the tip in the direction of its lean.
 
+Nozzle tilt accepts **-89° through +89°**, measured from vertical. Positive and negative angles tilt in opposite directions about the selected rotary axis; exactly 0° is vertical. The nozzle-rim clearance calculation uses the magnitude of the tilt, so equal positive and negative angles have the same calculated minimum layer height.
+
 ```text
                            upcoming bead path →
 
@@ -31,11 +33,13 @@ The orientation setting describes which way the nozzle body leans relative to th
 
 “Hybrid” means the midpoint of the **matrix heading** between the two named orientations. It does not halve the configured nozzle tilt angle: the tilt magnitude remains the same in every orientation. These five choices are available in the orientation cards as well as the selector; each card uses the same bead direction and shows the nozzle tip and leaning body, so the body’s direction can be compared directly.
 
-Most multi-axis printers have only one additional rotary axis. The generator therefore uses the selected firmware rotary axis to determine the bead heading and rotates the **entire matrix**—specimens, base, labels, and purge passes—around the configured bed center. It does not require independent rotation axes for each sample. The configured positive nozzle tilt is retained; selecting an orientation turns the complete pattern so that the tilt is toward, away from, or beside the deposited bead as described above. Bed-fit checks use the rotated pattern footprint.
+Most multi-axis printers have only one additional rotary axis. The generator therefore uses the selected firmware rotary axis to determine the bead heading and rotates the **entire matrix**—specimens, base, labels, and purge passes—around the configured bed center. It does not require independent rotation axes for each sample. The configured signed nozzle tilt is retained; selecting an orientation turns the complete pattern so that the tilt is toward, away from, or beside the deposited bead as described above. Bed-fit checks use the rotated pattern footprint.
 
 For A about X and B about Y, the generator assumes the conventional right-handed direction: positive A tilts toward -Y and positive B toward +X. Firmware configuration can reverse an axis, so verify axis direction and the first generated motion against your machine before printing. C rotates about Z and cannot physically tilt a nozzle; selecting C can rotate the matrix layout, but the generated C-axis command is not a real nozzle tilt. Use A or B when the printer’s tilt mechanism is configured on one of those axes.
 
 At **0° nozzle tilt**, the nozzle is vertical and has no lean relative to the bead. Trailing, leading, adjacent, and both hybrid choices are therefore physically equivalent. The generator treats orientation as a no-op at exactly 0°: it leaves the complete matrix in its standard direction instead of rotating it, and the specimen rotary-axis command remains at 0°. The selected option remains visible for clarity, but does not change the generated motion or bed footprint. The UI help and G-code comments identify this neutral case.
+
+At a **negative tilt**, the nozzle leans in the opposite direction from the same positive angle. To keep the selected relationship (trailing, leading, adjacent, or hybrid) relative to the bead, the generator automatically adds 180° to the orientation-derived matrix heading. The tilt command itself remains signed (for example, `A-45`), and the complete matrix rotates to match. This does not alter the configured tilt magnitude or turn a hybrid into a smaller tilt.
 
 The orientation changes the collision geometry, but does not change the existing clearance calculation into a full collision model. That calculation approximates the circular nozzle rim only; it cannot account for the nozzle body, carriage, pivot offsets, adjacent printed features, or firmware kinematics. In particular, leading-edge and adjacent setups may need more clearance than the calculated minimum. Start cautiously, check the bed and nozzle paths, and increase the layer-height minimum if the hardware requires it.
 

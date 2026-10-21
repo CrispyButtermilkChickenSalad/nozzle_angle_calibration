@@ -102,10 +102,13 @@ function updateOrientationHelp() {
   const neutralNote = angle === 0
     ? " At 0° tilt the nozzle is upright, so all orientation choices are equivalent and the matrix stays in its standard direction. The diagrams show the lean directions when the tilt is above 0°."
     : "";
+  const signedNote = angle < 0
+    ? " For a negative tilt, the matrix heading automatically shifts 180° to preserve the selected nozzle-to-bead orientation."
+    : "";
   const alignmentNote = angle === 0
     ? ""
     : " The complete matrix rotates to align with the selected firmware rotary axis.";
-  orientationHelp.textContent = `Trailing edge tilts away from the deposited bead for simpler printing and fewer collisions. Leading edge tilts toward the bead for complex geometry and acute angles, but can affect print quality and mechanical performance. Adjacent tilts 90° to the bead for feature clearance. Hybrid options place the matrix halfway between the corresponding edge and adjacent orientations.${alignmentNote} Verify axis direction and orientation on your printer before printing.${neutralNote}${axisNote}`;
+  orientationHelp.textContent = `Trailing edge tilts away from the deposited bead for simpler printing and fewer collisions. Leading edge tilts toward the bead for complex geometry and acute angles, but can affect print quality and mechanical performance. Adjacent tilts 90° to the bead for feature clearance. Hybrid options place the matrix halfway between the corresponding edge and adjacent orientations.${alignmentNote}${signedNote} Verify axis direction and orientation on your printer before printing.${neutralNote}${axisNote}`;
 }
 
 function updateConditionalFields() {
