@@ -68,9 +68,9 @@ legend { display: block; padding: 0; width: 100%; margin-bottom: 12px; color: #3
 .orientation-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 4px; background: #fbf9fd; margin: 0; }
 .orientation-illustration { display: block; width: 100%; height: auto; background: #f7f3fa; }
 .diagram-bead { fill: none; stroke: #cc7046; stroke-width: 9; stroke-linecap: round; }
-.diagram-tip { fill: #cc7046; stroke: #fff; stroke-width: 1.5; }
-.diagram-tilt { fill: none; stroke: #76558f; stroke-width: 5; stroke-linecap: round; }
-.diagram-arrowhead { fill: #76558f; }
+.diagram-nozzle-body { fill: #746b7e; stroke: #403747; stroke-width: 1.5; stroke-linejoin: round; }
+.diagram-nozzle-detail { fill: none; stroke: #d8d0de; stroke-width: 1.5; stroke-linecap: round; }
+.diagram-nozzle-tip { fill: #d2c8d9; stroke: #403747; stroke-width: 1; }
 .diagram-flow { fill: none; stroke: #52685a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .diagram-label { fill: #675b70; font: 6.5px var(--mono); letter-spacing: .025em; }
 .orientation-card figcaption { display: grid; gap: 4px; padding: 8px 9px 9px; }
@@ -155,7 +155,9 @@ body[data-theme="dark"] .textarea-label textarea,
 body[data-theme="dark"] .theme-toggle { background: #211a28; border-color: #574565; color: var(--ink); }
 body[data-theme="dark"] .orientation-card { background: #211a28; border-color: #493b55; }
 body[data-theme="dark"] .orientation-illustration { background: #332a3b; }
-body[data-theme="dark"] .diagram-tip { stroke: #332a3b; }
+body[data-theme="dark"] .diagram-nozzle-body { fill: #c2b6cd; stroke: #201a27; }
+body[data-theme="dark"] .diagram-nozzle-detail { stroke: #54485f; }
+body[data-theme="dark"] .diagram-nozzle-tip { fill: #e8deef; stroke: #201a27; }
 body[data-theme="dark"] .orientation-card figcaption span { color: #bac6bd; }
 body[data-theme="dark"] .diagram-label { fill: #d0c3da; }
 body[data-theme="dark"] .input-wrap > span,

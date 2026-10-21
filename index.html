@@ -114,13 +114,15 @@
                   <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="trailing-title trailing-description">
                     <title id="trailing-title">Trailing-edge orientation</title>
                     <desc id="trailing-description">The nozzle leans away from the deposited bead, opposite the direction in which the bead path is laid.</desc>
-                    <path class="diagram-bead" d="M20 57H76"/>
-                    <circle class="diagram-tip" cx="76" cy="57" r="5"/>
-                    <path class="diagram-tilt" d="M76 57H132"/>
-                    <path class="diagram-arrowhead" d="m142 57-13-8v16z"/>
-                    <path class="diagram-flow" d="M82 83h57l-8-5m8 5-8 5"/>
-                    <text class="diagram-label" x="20" y="48">DEPOSITED BEAD</text>
-                    <text class="diagram-label" x="105" y="99">BEAD PATH</text>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(90)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
                   </svg>
                   <figcaption><strong>Trailing edge</strong><span>Leans away from the bead already laid down.</span></figcaption>
                 </figure>
@@ -128,13 +130,15 @@
                   <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="leading-title leading-description">
                     <title id="leading-title">Leading-edge orientation</title>
                     <desc id="leading-description">The nozzle leans toward the deposited bead, opposite the bead path direction.</desc>
-                    <path class="diagram-bead" d="M20 57H76"/>
-                    <circle class="diagram-tip" cx="76" cy="57" r="5"/>
-                    <path class="diagram-tilt" d="M76 57H24"/>
-                    <path class="diagram-arrowhead" d="m14 57 13-8v16z"/>
-                    <path class="diagram-flow" d="M82 83h57l-8-5m8 5-8 5"/>
-                    <text class="diagram-label" x="20" y="48">DEPOSITED BEAD</text>
-                    <text class="diagram-label" x="105" y="99">BEAD PATH</text>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(-90)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
                   </svg>
                   <figcaption><strong>Leading edge</strong><span>Leans toward the deposited bead; useful for acute or complex geometry.</span></figcaption>
                 </figure>
@@ -142,13 +146,15 @@
                   <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="adjacent-title adjacent-description">
                     <title id="adjacent-title">Adjacent orientation</title>
                     <desc id="adjacent-description">The nozzle leans perpendicular to the bead path for clearance around printed features.</desc>
-                    <path class="diagram-bead" d="M20 57H76"/>
-                    <circle class="diagram-tip" cx="76" cy="57" r="5"/>
-                    <path class="diagram-tilt" d="M76 57V20"/>
-                    <path class="diagram-arrowhead" d="m76 10-8 13h16z"/>
-                    <path class="diagram-flow" d="M82 83h57l-8-5m8 5-8 5"/>
-                    <text class="diagram-label" x="20" y="48">DEPOSITED BEAD</text>
-                    <text class="diagram-label" x="105" y="99">BEAD PATH</text>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
                   </svg>
                   <figcaption><strong>Adjacent</strong><span>Leans 90° to the bead path for feature clearance.</span></figcaption>
                 </figure>
@@ -156,13 +162,15 @@
                   <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="hybrid-trailing-title hybrid-trailing-description">
                     <title id="hybrid-trailing-title">Hybrid trailing and adjacent orientation</title>
                     <desc id="hybrid-trailing-description">The nozzle lean is halfway between trailing edge and perpendicular to the bead path.</desc>
-                    <path class="diagram-bead" d="M20 57H76"/>
-                    <circle class="diagram-tip" cx="76" cy="57" r="5"/>
-                    <path class="diagram-tilt" d="m76 57 39-39"/>
-                    <path class="diagram-arrowhead" d="m122 11-15 5 10 10z"/>
-                    <path class="diagram-flow" d="M82 83h57l-8-5m8 5-8 5"/>
-                    <text class="diagram-label" x="20" y="48">DEPOSITED BEAD</text>
-                    <text class="diagram-label" x="105" y="99">BEAD PATH</text>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(45)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
                   </svg>
                   <figcaption><strong>Hybrid: trailing / adjacent</strong><span>Halfway between trailing and adjacent.</span></figcaption>
                 </figure>
@@ -170,13 +178,15 @@
                   <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="hybrid-leading-title hybrid-leading-description">
                     <title id="hybrid-leading-title">Hybrid leading and adjacent orientation</title>
                     <desc id="hybrid-leading-description">The nozzle lean is halfway between leading edge and perpendicular to the bead path.</desc>
-                    <path class="diagram-bead" d="M20 57H76"/>
-                    <circle class="diagram-tip" cx="76" cy="57" r="5"/>
-                    <path class="diagram-tilt" d="m76 57-39-39"/>
-                    <path class="diagram-arrowhead" d="m30 11 5 15 10-10z"/>
-                    <path class="diagram-flow" d="M82 83h57l-8-5m8 5-8 5"/>
-                    <text class="diagram-label" x="20" y="48">DEPOSITED BEAD</text>
-                    <text class="diagram-label" x="105" y="99">BEAD PATH</text>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(-45)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
                   </svg>
                   <figcaption><strong>Hybrid: leading / adjacent</strong><span>Halfway between leading and adjacent.</span></figcaption>
                 </figure>
