@@ -72,6 +72,7 @@ function updateHeightConstraints() {
   const holeDiameter = Number(nozzleHoleDiameter.value);
   const angle = Number(form.elements.namedItem("angleDegrees").value);
   const helper = document.querySelector("#height-clearance-help");
+  updateOrientationHelp();
   try {
     const minimum = minimumLayerHeight(tipDiameter, angle);
     const maximum = Number((holeDiameter * 1.5).toFixed(6));
@@ -93,11 +94,25 @@ function updateHeightConstraints() {
   }
 }
 
+function updateOrientationHelp() {
+  const angle = Number(form.elements.namedItem("angleDegrees").value);
+  const axisNote = angleAxis.value === "C"
+    ? " C rotates about Z and cannot physically tilt a nozzle; use A or B for a real tilt axis."
+    : "";
+  const neutralNote = angle === 0
+    ? " At 0° tilt the nozzle is upright, so all orientation choices are equivalent and the matrix stays in its standard direction. The diagrams show the lean directions when the tilt is above 0°."
+    : "";
+  const alignmentNote = angle === 0
+    ? ""
+    : " The complete matrix rotates to align with the selected firmware rotary axis.";
+  orientationHelp.textContent = `Trailing edge tilts away from the deposited bead for simpler printing and fewer collisions. Leading edge tilts toward the bead for complex geometry and acute angles, but can affect print quality and mechanical performance. Adjacent tilts 90° to the bead for feature clearance. Hybrid options place the matrix halfway between the corresponding edge and adjacent orientations.${alignmentNote} Verify axis direction and orientation on your printer before printing.${neutralNote}${axisNote}`;
+}
+
 function updateConditionalFields() {
   const circular = bedShape.value === "circular";
   bedY.disabled = circular;
   bedYLabel.classList.toggle("is-disabled", circular);
-  orientationHelp.textContent = `Trailing edge tilts away from the deposited bead for simpler printing and fewer collisions. Leading edge tilts toward the bead for complex geometry and acute angles, but can affect print quality and mechanical performance. Adjacent tilts 90° to the bead for feature clearance. Hybrid options place the matrix halfway between the corresponding edge and adjacent orientations. The complete matrix rotates to align with the selected firmware rotary axis. Verify axis direction and orientation on your printer before printing.${angleAxis.value === "C" ? " C rotates about Z and cannot physically tilt a nozzle; use A or B for a real tilt axis." : ""}`;
+  updateOrientationHelp();
   form.elements.namedItem("customStartGcode").disabled = !form.elements.namedItem("useCustomStartGcode").checked;
   form.elements.namedItem("customEndGcode").disabled = !form.elements.namedItem("useCustomEndGcode").checked;
   customStart.closest(".textarea-label").classList.toggle("is-disabled", customStart.disabled);

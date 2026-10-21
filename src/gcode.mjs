@@ -59,7 +59,7 @@ function format(value, decimals = 6) {
   return Number(value.toFixed(decimals)).toString();
 }
 
-function orientationForAxis(axis, orientation) {
+function orientationForAxis(axis, orientation, angle) {
   const leadingHeading = axis === "A" ? -90 : 0;
   const orientationSettings = {
     trailing: { heading: leadingHeading + 180, label: "trailing edge" },
@@ -72,8 +72,8 @@ function orientationForAxis(axis, orientation) {
     throw new Error("Choose trailing edge, leading edge, adjacent, or a hybrid nozzle orientation.");
   }
   const setting = orientationSettings[orientation];
-  const rotationDegrees = ((setting.heading % 360) + 360) % 360;
-  return { ...setting, rotationDegrees };
+  const rotationDegrees = angle === 0 ? 0 : ((setting.heading % 360) + 360) % 360;
+  return { ...setting, rotationDegrees, neutral: angle === 0 };
 }
 
 function rotatePoint(x, y, centerX, centerY, rotationRadians) {
@@ -277,7 +277,7 @@ export function generateGcode(config) {
   const bedShape = String(config.bedShape ?? "").toLowerCase();
   const angleAxis = String(config.angleAxis ?? "").trim().toUpperCase();
   const orientation = String(config.nozzleOrientation ?? "trailing").trim().toLowerCase();
-  const orientationSettings = orientationForAxis(angleAxis, orientation);
+  const orientationSettings = orientationForAxis(angleAxis, orientation, angle);
   const extruderName = String(config.extruderName ?? "").trim();
   const toolIndex = validateNumber(config.toolIndex, "Tool index", 0, 15);
 
@@ -381,12 +381,12 @@ export function generateGcode(config) {
     "; Nozzle angle calibration test matrix",
     `; Firmware profile: ${firmware}; bed: ${bedShape} ${format(bedSizeX, 1)} × ${format(bedSizeY, 1)} mm`,
     `; Pattern centered at X${format(bedCenterX)} Y${format(bedCenterY)}; origin at bed center: ${Boolean(config.originAtCenter)}`,
-    `; Bed orientation: ${orientationSettings.label}; matrix rotated ${format(orientationSettings.rotationDegrees, 1)}° about the bed center for rotary axis ${angleAxis}.`,
+    `; Bed orientation: ${orientationSettings.neutral ? "upright nozzle; all orientations are equivalent at 0° tilt" : orientationSettings.label}; matrix ${orientationSettings.neutral ? "remains in its standard direction" : `rotated ${format(orientationSettings.rotationDegrees, 1)}° about the bed center for rotary axis ${angleAxis}`}.`,
     `; Matrix: ${flows.length} flow rows × ${heights.length} layer-height columns; ${cases.length} specimens; ${layerCount} layers per specimen.`,
     `; Print order: complete each layer-height column from minimum to maximum; flow increases within each column.`,
     `; Nozzle tilt ${format(angle, 1)} degrees from vertical; rotary axis ${angleAxis} rotates about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}.`,
     `; Selected rotary axis: ${angleAxis} (rotation about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}).`,
-    `; Nozzle orientation: ${orientationSettings.label}; specimen tilt command is ${format(angle, 1)}° on the selected rotary axis.`,
+    `; Nozzle orientation: ${orientationSettings.neutral ? `${orientationSettings.label} (no effect at 0° tilt)` : orientationSettings.label}; specimen tilt command is ${format(angle, 1)}° on the selected rotary axis.`,
     ...(angleAxis === "C" ? ["; C rotates about Z and cannot physically tilt the nozzle; orientation is only a matrix layout reference."] : []),
     `; Flow labels are percentages: ${format(flows[0], 3)}% to ${format(flows.at(-1), 3)}% in ${format(numeric(config.flowStepPercent, "Flow increment"), 3)}% increments.`,
     `; Layer-height labels are millimeters: ${format(heights[0])} to ${format(heights.at(-1))} mm in ${format(numeric(config.layerHeightStep, "Layer-height increment"))} mm increments; maximum is 1.5 × nozzle-hole diameter.`,
@@ -642,7 +642,9 @@ export function generateGcode(config) {
     preview: {
       angle,
       angleAxis,
-      orientationLabel: orientationSettings.label,
+      orientationLabel: orientationSettings.neutral
+        ? "upright nozzle; all orientations equivalent at 0° tilt"
+        : orientationSettings.label,
       rotationDegrees: orientationSettings.rotationDegrees,
       bounds: {
         minX: shifted(plateMinX, offsetX),

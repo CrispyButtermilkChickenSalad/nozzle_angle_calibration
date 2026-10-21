@@ -147,6 +147,24 @@ test("orients the complete matrix and bead direction for each rotary axis", () =
   );
 });
 
+test("keeps every nozzle orientation equivalent and unrotated at zero tilt", () => {
+  const orientations = ["trailing", "leading", "adjacent", "hybrid-trailing", "hybrid-leading"];
+  for (const angleAxis of ["A", "B", "C"]) {
+    const baseline = generateGcode({ ...defaults, angleDegrees: 0, angleAxis, nozzleOrientation: orientations[0] });
+    const baselineMoves = baseline.text.match(/^(?:G0|G1) X[^\n]+$/gm);
+    assert.equal(baseline.preview.rotationDegrees, 0);
+    assert.equal(baseline.preview.orientationLabel, "upright nozzle; all orientations equivalent at 0° tilt");
+    assert.match(baseline.text, /matrix remains in its standard direction/);
+
+    for (const nozzleOrientation of orientations) {
+      const result = generateGcode({ ...defaults, angleDegrees: 0, angleAxis, nozzleOrientation });
+      assert.equal(result.preview.rotationDegrees, 0, `${angleAxis} ${nozzleOrientation} remains unrotated`);
+      assert.deepEqual(result.text.match(/^(?:G0|G1) X[^\n]+$/gm), baselineMoves);
+      assert.match(result.text, new RegExp(`Nozzle orientation: ${nozzleOrientation === "hybrid-trailing" ? "hybrid: trailing / adjacent" : nozzleOrientation === "hybrid-leading" ? "hybrid: leading / adjacent" : nozzleOrientation} \\(no effect at 0° tilt\\)`));
+    }
+  }
+});
+
 test("generates deterministic test order, readable labels, purge, and safe defaults", () => {
   const config = { ...defaults, acceleration: 3500 };
   const result = generateGcode(config);
