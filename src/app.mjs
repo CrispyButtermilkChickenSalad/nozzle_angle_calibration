@@ -6,7 +6,6 @@ const rowCount = document.querySelector("#row-count");
 const statusBadge = document.querySelector("#status-badge");
 const errorMessage = document.querySelector("#form-error");
 const downloadButton = document.querySelector("#download-button");
-const outputName = document.querySelector("#output-name");
 const outputFilename = document.querySelector("#output-filename");
 const themeToggle = document.querySelector("#theme-toggle");
 let generated = null;
@@ -23,10 +22,6 @@ function getOutputFilename() {
     ? `_${safeBaseName}`
     : safeBaseName;
   return `${validBaseName}.gcode`;
-}
-
-function updateOutputFilename() {
-  outputName.textContent = getOutputFilename();
 }
 
 const fields = [
@@ -182,10 +177,6 @@ downloadButton.addEventListener("click", () => {
   link.click();
   URL.revokeObjectURL(url);
 });
-
-outputFilename.addEventListener("input", updateOutputFilename);
-outputFilename.addEventListener("change", updateOutputFilename);
-updateOutputFilename();
 
 for (const fieldName of fields) {
   const element = form.elements.namedItem(fieldName);

@@ -422,12 +422,11 @@
           </div>
           <div class="download-row">
             <div>
-              <label class="download-label" for="output-filename">OUTPUT FILENAME</label>
+              <label class="download-label" for="output-filename">EDIT OUTPUT FILENAME</label>
               <span class="filename-control">
-                <input id="output-filename" type="text" value="angle-calibration-matrix" maxlength="80" autocomplete="off" aria-describedby="filename-help">
-                <span>.gcode</span>
+                <input id="output-filename" type="text" value="angle-calibration-matrix.gcode" maxlength="85" autocomplete="off" spellcheck="false" aria-describedby="filename-help">
               </span>
-              <p id="filename-help" class="filename-help">Download as <strong id="output-name">angle-calibration-matrix.gcode</strong></p>
+              <p id="filename-help" class="filename-help">Type a filename; <code>.gcode</code> is added if omitted.</p>
             </div>
             <button id="download-button" class="download-button" type="button" disabled>
               <span aria-hidden="true">↓</span> Download G-code

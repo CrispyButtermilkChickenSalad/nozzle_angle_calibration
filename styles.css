@@ -121,9 +121,8 @@ legend { display: block; padding: 0; width: 100%; margin-bottom: 12px; color: #3
 .filename-control { width: min(100%, 280px); height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid #d8dfd8; border-radius: 3px; background: #fcfdfb; }
 .filename-control:focus-within { border-color: #a58ac0; box-shadow: 0 0 0 2px rgba(112, 68, 154, .1); }
 .filename-control input { min-width: 0; width: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font: 11px var(--mono); }
-.filename-control > span { color: #657169; font: 10px var(--mono); }
 .filename-help { margin: 4px 0 0; color: #657169; font-size: 10px; }
-.filename-help strong { overflow-wrap: anywhere; font: 10px var(--mono); color: #3e4b43; }
+.filename-help code { font: 10px var(--mono); }
 .download-button { min-height: 38px; gap: 7px; font-size: 11px; }
 .download-button > span { font-size: 15px; color: var(--lime); }
 .download-button:disabled { background: #aeb8b1; cursor: not-allowed; }
@@ -182,9 +181,7 @@ body[data-theme="dark"] .preview-toolbar,
 body[data-theme="dark"] .preview-legend,
 body[data-theme="dark"] .download-label { color: #bac6bd; }
 body[data-theme="dark"] .filename-control { background: #211a28; border-color: #574565; }
-body[data-theme="dark"] .filename-control > span,
 body[data-theme="dark"] .filename-help { color: #bac6bd; }
-body[data-theme="dark"] .filename-help strong { color: #e1e9e3; }
 body[data-theme="dark"] .gcode-preview pre { background: #211a28; color: #ddd0e7; }
 body[data-theme="dark"] .legend-number { background: #3b2e49; }
 body[data-theme="dark"] .error-message { color: #ffd7cc; background: #4a2b25; }
