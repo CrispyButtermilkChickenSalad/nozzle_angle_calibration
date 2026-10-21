@@ -13,9 +13,10 @@ export function minimumLayerHeight(nozzleTipDiameter, tiltDegrees) {
   if (!Number.isFinite(nozzleTipDiameter) || nozzleTipDiameter <= 0) {
     throw new Error("Nozzle tip diameter must be greater than zero.");
   }
-  if (!Number.isFinite(tiltDegrees) || tiltDegrees < 0 || tiltDegrees >= 90) {
-    throw new Error("Nozzle tilt must be at least 0° and less than 90°.");
+  if (!Number.isFinite(tiltDegrees) || Math.abs(tiltDegrees) >= 90) {
+    throw new Error("Nozzle tilt must be between -90° and +90°, exclusive.");
   }
+  tiltDegrees = Math.abs(tiltDegrees);
   const radius = nozzleTipDiameter / 2;
   const horizontalProjection = radius * Math.cos(tiltDegrees * Math.PI / 180);
   return Math.sqrt(Math.max(0, radius ** 2 - horizontalProjection ** 2));
@@ -59,6 +60,48 @@ function format(value, decimals = 6) {
   return Number(value.toFixed(decimals)).toString();
 }
 
+function orientationForAxis(axis, orientation, angle) {
+  const leadingHeading = axis === "A" ? -90 : 0;
+  const orientationSettings = {
+    trailing: { heading: leadingHeading + 180, label: "trailing edge" },
+    leading: { heading: leadingHeading, label: "leading edge" },
+    adjacent: { heading: leadingHeading + 90, label: "adjacent" },
+    "hybrid-trailing": { heading: leadingHeading + 135, label: "hybrid: trailing / adjacent" },
+    "hybrid-leading": { heading: leadingHeading + 45, label: "hybrid: leading / adjacent" },
+  };
+  if (!Object.prototype.hasOwnProperty.call(orientationSettings, orientation)) {
+    throw new Error("Choose trailing edge, leading edge, adjacent, or a hybrid nozzle orientation.");
+  }
+  const setting = orientationSettings[orientation];
+  const heading = setting.heading + (angle < 0 ? 180 : 0);
+  const rotationDegrees = angle === 0 ? 0 : ((heading % 360) + 360) % 360;
+  return { ...setting, rotationDegrees, neutral: angle === 0 };
+}
+
+function rotatePoint(x, y, centerX, centerY, rotationRadians) {
+  const relativeX = x - centerX;
+  const relativeY = y - centerY;
+  return {
+    x: centerX + relativeX * Math.cos(rotationRadians) - relativeY * Math.sin(rotationRadians),
+    y: centerY + relativeX * Math.sin(rotationRadians) + relativeY * Math.cos(rotationRadians),
+  };
+}
+
+function rotatedBounds(minX, maxX, minY, maxY, centerX, centerY, rotationRadians) {
+  const corners = [
+    rotatePoint(minX, minY, centerX, centerY, rotationRadians),
+    rotatePoint(minX, maxY, centerX, centerY, rotationRadians),
+    rotatePoint(maxX, minY, centerX, centerY, rotationRadians),
+    rotatePoint(maxX, maxY, centerX, centerY, rotationRadians),
+  ];
+  return {
+    minX: Math.min(...corners.map(({ x }) => x)),
+    maxX: Math.max(...corners.map(({ x }) => x)),
+    minY: Math.min(...corners.map(({ y }) => y)),
+    maxY: Math.max(...corners.map(({ y }) => y)),
+  };
+}
+
 function createCases(config, clearance, nozzleHoleDiameter) {
   const angle = numeric(config.angleDegrees, "Nozzle angle");
   const heights = valueRange(
@@ -79,7 +122,7 @@ function createCases(config, clearance, nozzleHoleDiameter) {
   );
   const layerCount = numeric(config.layerCount, "Stacked layer count");
 
-  if (angle < 0 || angle > 89) throw new Error("Nozzle angle must be between 0 and 89 degrees.");
+  if (Math.abs(angle) > 89) throw new Error("Nozzle angle must be between -89 and +89 degrees.");
   for (const height of heights) {
     if (height + EPSILON < clearance) {
       throw new Error(`Minimum layer height ${format(height)} mm is below the collision-safe minimum ${format(clearance)} mm at ${format(angle, 1)}° tilt.`);
@@ -235,6 +278,8 @@ export function generateGcode(config) {
   const firmware = String(config.firmware ?? "").toLowerCase();
   const bedShape = String(config.bedShape ?? "").toLowerCase();
   const angleAxis = String(config.angleAxis ?? "").trim().toUpperCase();
+  const orientation = String(config.nozzleOrientation ?? "trailing").trim().toLowerCase();
+  const orientationSettings = orientationForAxis(angleAxis, orientation, angle);
   const extruderName = String(config.extruderName ?? "").trim();
   const toolIndex = validateNumber(config.toolIndex, "Tool index", 0, 15);
 
@@ -290,20 +335,29 @@ export function generateGcode(config) {
   const purgeReturnY = purgeY + purgeRowSpacing;
   const layoutMaxX = Math.max(plateMaxX, purgeMaxX + nozzleHoleDiameter / 2);
   const layoutMaxY = purgeReturnY + nozzleHoleDiameter / 2;
-  const patternWidth = layoutMaxX - plateMinX;
-  const patternHeight = layoutMaxY - plateMinY;
+  const unrotatedPatternWidth = layoutMaxX - plateMinX;
+  const unrotatedPatternHeight = layoutMaxY - plateMinY;
+  const rotationRadians = orientationSettings.rotationDegrees * Math.PI / 180;
+  const patternBounds = rotatedBounds(
+    bedCenterX - unrotatedPatternWidth / 2,
+    bedCenterX + unrotatedPatternWidth / 2,
+    bedCenterY - unrotatedPatternHeight / 2,
+    bedCenterY + unrotatedPatternHeight / 2,
+    bedCenterX,
+    bedCenterY,
+    rotationRadians,
+  );
+  const patternWidth = patternBounds.maxX - patternBounds.minX;
+  const patternHeight = patternBounds.maxY - patternBounds.minY;
   const includedParts = "solid matrix base, labels, test lines, and purge line";
 
   if (bedShape === "rectangular") {
-    const minX = bedCenterX - patternWidth / 2;
-    const maxX = bedCenterX + patternWidth / 2;
-    const minY = bedCenterY - patternHeight / 2;
-    const maxY = bedCenterY + patternHeight / 2;
     const bedMinX = config.originAtCenter ? -bedSizeX / 2 : 0;
     const bedMaxX = config.originAtCenter ? bedSizeX / 2 : bedSizeX;
     const bedMinY = config.originAtCenter ? -bedSizeY / 2 : 0;
     const bedMaxY = config.originAtCenter ? bedSizeY / 2 : bedSizeY;
-    if (minX < bedMinX - EPSILON || maxX > bedMaxX + EPSILON || minY < bedMinY - EPSILON || maxY > bedMaxY + EPSILON) {
+    if (patternBounds.minX < bedMinX - EPSILON || patternBounds.maxX > bedMaxX + EPSILON
+      || patternBounds.minY < bedMinY - EPSILON || patternBounds.maxY > bedMaxY + EPSILON) {
       throw new Error(`Pattern including the ${includedParts} is ${format(patternWidth, 1)} × ${format(patternHeight, 1)} mm; it does not fit the ${format(bedSizeX, 1)} × ${format(bedSizeY, 1)} mm rectangular bed.`);
     }
   } else if (Math.hypot(patternWidth / 2, patternHeight / 2) > bedSizeX / 2 + EPSILON) {
@@ -312,20 +366,30 @@ export function generateGcode(config) {
 
   const offsetX = bedCenterX - (plateMinX + layoutMaxX) / 2;
   const offsetY = bedCenterY - (plateMinY + layoutMaxY) / 2;
-  const xPosition = (value) => format(value + offsetX);
   const mirrorY = (value) => plateMinY + layoutMaxY - value;
-  const yPosition = (value) => format(mirrorY(value) + offsetY);
+  const bedPosition = (x, y) => {
+    const rotated = rotatePoint(
+      x + offsetX,
+      mirrorY(y) + offsetY,
+      bedCenterX,
+      bedCenterY,
+      rotationRadians,
+    );
+    return { x: format(rotated.x), y: format(rotated.y) };
+  };
   const tagHeight = heights[0];
   const labelGapClearance = Math.min(...[angleLabel, ...flowLabels, ...layerLabels].map((label) => label.gapClearance));
   const lines = [
     "; Nozzle angle calibration test matrix",
     `; Firmware profile: ${firmware}; bed: ${bedShape} ${format(bedSizeX, 1)} × ${format(bedSizeY, 1)} mm`,
     `; Pattern centered at X${format(bedCenterX)} Y${format(bedCenterY)}; origin at bed center: ${Boolean(config.originAtCenter)}`,
-    "; Bed orientation: height columns increase left-to-right (+X); minimum flow is at +Y, increasing flow runs toward -Y.",
+    `; Bed orientation: ${orientationSettings.neutral ? "upright nozzle; all orientations are equivalent at 0° tilt" : orientationSettings.label}; matrix ${orientationSettings.neutral ? "remains in its standard direction" : `rotated ${format(orientationSettings.rotationDegrees, 1)}° about the bed center for rotary axis ${angleAxis}`}.`,
     `; Matrix: ${flows.length} flow rows × ${heights.length} layer-height columns; ${cases.length} specimens; ${layerCount} layers per specimen.`,
     `; Print order: complete each layer-height column from minimum to maximum; flow increases within each column.`,
     `; Nozzle tilt ${format(angle, 1)} degrees from vertical; rotary axis ${angleAxis} rotates about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}.`,
     `; Selected rotary axis: ${angleAxis} (rotation about ${({ A: "X", B: "Y", C: "Z" })[angleAxis]}).`,
+    `; Nozzle orientation: ${orientationSettings.neutral ? `${orientationSettings.label} (no effect at 0° tilt)` : orientationSettings.label}; matrix heading ${format(orientationSettings.rotationDegrees, 1)}°; specimen tilt command is ${format(angle, 1)}° on the selected rotary axis.`,
+    ...(angleAxis === "C" ? ["; C rotates about Z and cannot physically tilt the nozzle; orientation is only a matrix layout reference."] : []),
     `; Flow labels are percentages: ${format(flows[0], 3)}% to ${format(flows.at(-1), 3)}% in ${format(numeric(config.flowStepPercent, "Flow increment"), 3)}% increments.`,
     `; Layer-height labels are millimeters: ${format(heights[0])} to ${format(heights.at(-1))} mm in ${format(numeric(config.layerHeightStep, "Layer-height increment"))} mm increments; maximum is 1.5 × nozzle-hole diameter.`,
     `; Collision-safe minimum height at this angle: ${format(clearance, 6)} mm; physical nozzle tip diameter ${format(nozzleTipDiameter)} mm.`,
@@ -340,7 +404,7 @@ export function generateGcode(config) {
     `; Retract ${format(retractDistance)} mm at ${format(retractSpeed)} mm/s; Z-hop ${format(zHopHeight)} mm.`,
     `; Purge path length ${format(purgeLength)} mm per pass (${format(purgeLength * 2)} mm total), with a ${format(purgeRowSpacing)} mm return pass, printed before the base.`,
     `; Pressure advance ${config.usePressureAdvance ? `fixed at ${format(pressureAdvance)}` : "left to firmware configuration"}.`,
-    "; Review firmware support, bed limits, start/end macros, and nozzle clearance before printing.",
+    "; Review firmware axis direction, bed limits, start/end macros, and nozzle clearance before printing.",
     "G21 ; units in mm",
     "G90 ; absolute XYZ positioning",
     "M83 ; relative extrusion",
@@ -396,7 +460,8 @@ export function generateGcode(config) {
       const hopZ = Math.max(currentZ, z) + zHopHeight;
       lines.push(`G0 Z${format(hopZ)} F${TRAVEL_FEEDRATE} ; lift / Z-hop`);
     }
-    lines.push(`G0 X${xPosition(x)} Y${yPosition(y)} F${TRAVEL_FEEDRATE}`);
+    const position = bedPosition(x, y);
+    lines.push(`G0 X${position.x} Y${position.y} F${TRAVEL_FEEDRATE}`);
     lines.push(`G0 Z${format(z)}`);
     currentZ = z;
     if (hasExtruded && retractDistance > 0) {
@@ -407,7 +472,8 @@ export function generateGcode(config) {
   const extrudeSegment = (x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt) => {
     lines.push(`G1 ${angleAxis}${format(tilt, 1)} F${TRAVEL_FEEDRATE}`);
     const e = extrusionPerMm(height, width, multiplier, filamentDiameter) * Math.hypot(x2 - x1, y2 - y1);
-    lines.push(`G1 X${xPosition(x2)} Y${yPosition(y2)} E${format(e, 8)} F${format(feedrate * 60, 0)}`);
+    const position = bedPosition(x2, y2);
+    lines.push(`G1 X${position.x} Y${position.y} E${format(e, 8)} F${format(feedrate * 60, 0)}`);
     hasExtruded = true;
   };
   const printSegment = (x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt) => {
@@ -419,7 +485,10 @@ export function generateGcode(config) {
     tag.paths.forEach((path, index) => {
       const [start, end] = path;
       if (index === 0) travelTo(start[0] + tag.x, start[1] + tag.y, z);
-      else lines.push(`G0 X${xPosition(start[0] + tag.x)} Y${yPosition(start[1] + tag.y)} F${TRAVEL_FEEDRATE} ; non-extruding move within this label`);
+      else {
+        const position = bedPosition(start[0] + tag.x, start[1] + tag.y);
+        lines.push(`G0 X${position.x} Y${position.y} F${TRAVEL_FEEDRATE} ; non-extruding move within this label`);
+      }
       extrudeSegment(
         start[0] + tag.x, start[1] + tag.y, end[0] + tag.x, end[1] + tag.y,
         z, height, nozzleHoleDiameter, 1, firstLayerSpeed, 0,
@@ -430,7 +499,8 @@ export function generateGcode(config) {
   lines.push("");
   lines.push(`; DOUBLE-PASS PURGE | ${format(purgeLength)} mm each way at 200% flow, separate from matrix base and samples`);
   printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
-  lines.push(`G0 X${xPosition(purgeMaxX)} Y${yPosition(purgeReturnY)} F${TRAVEL_FEEDRATE} ; reposition for return purge pass without extrusion`);
+  const purgeReturnPosition = bedPosition(purgeMaxX, purgeReturnY);
+  lines.push(`G0 X${purgeReturnPosition.x} Y${purgeReturnPosition.y} F${TRAVEL_FEEDRATE} ; reposition for return purge pass without extrusion`);
   extrudeSegment(purgeMaxX, purgeReturnY, purgeX, purgeReturnY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
 
   lines.push("");
@@ -574,6 +644,10 @@ export function generateGcode(config) {
     preview: {
       angle,
       angleAxis,
+      orientationLabel: orientationSettings.neutral
+        ? "upright nozzle; all orientations equivalent at 0° tilt"
+        : orientationSettings.label,
+      rotationDegrees: orientationSettings.rotationDegrees,
       bounds: {
         minX: shifted(plateMinX, offsetX),
         maxX: shifted(plateMaxX, offsetX),
@@ -581,10 +655,7 @@ export function generateGcode(config) {
         maxY: shifted(mirrorY(plateMinY), offsetY),
       },
       layoutBounds: {
-        minX: shifted(plateMinX, offsetX),
-        maxX: shifted(layoutMaxX, offsetX),
-        minY: shifted(plateMinY, offsetY),
-        maxY: shifted(layoutMaxY, offsetY),
+        ...patternBounds,
       },
       rows,
       columns,

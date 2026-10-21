@@ -36,13 +36,18 @@ export function createScenePreview(canvas) {
     const centerX = (modelBounds.minX + modelBounds.maxX) / 2;
     const centerY = (modelBounds.minY + modelBounds.maxY) / 2;
     const topZ = layout.firstLayerHeight + layout.layerCount * Math.max(...layout.columns.map((column) => column.height));
+    const rotation = (layout.rotationDegrees ?? 0) * Math.PI / 180;
+    const cosRotation = Math.cos(rotation);
+    const sinRotation = Math.sin(rotation);
     const cosYaw = Math.cos(yaw);
     const sinYaw = Math.sin(yaw);
     const cosPitch = Math.cos(pitch);
     const sinPitch = Math.sin(pitch);
-    const rawProject = (x, y, z) => {
-      const relativeX = x - centerX;
-      const relativeY = y - centerY;
+    const rawProject = (x, y, z, rotateModel = true) => {
+      const originalX = x - centerX;
+      const originalY = y - centerY;
+      const relativeX = rotateModel ? originalX * cosRotation - originalY * sinRotation : originalX;
+      const relativeY = rotateModel ? originalX * sinRotation + originalY * cosRotation : originalY;
       const horizontal = relativeX * cosYaw + relativeY * sinYaw;
       const depth = -relativeX * sinYaw + relativeY * cosYaw;
       return {
@@ -54,7 +59,7 @@ export function createScenePreview(canvas) {
     const corners = [];
     for (const x of [modelBounds.minX, modelBounds.maxX]) {
       for (const y of [modelBounds.minY, modelBounds.maxY]) {
-        for (const z of [0, topZ]) corners.push(rawProject(x, y, z));
+        for (const z of [0, topZ]) corners.push(rawProject(x, y, z, false));
       }
     }
     const minX = Math.min(...corners.map((point) => point.x));
@@ -67,8 +72,8 @@ export function createScenePreview(canvas) {
     ) * zoom;
     const screenOffsetX = bounds.width / 2 - ((minX + maxX) / 2) * scale;
     const screenOffsetY = bounds.height * 0.53 - ((minY + maxY) / 2) * scale;
-    const project = (x, y, z) => {
-      const point = rawProject(x, y, z);
+    const project = (x, y, z, rotateModel = true) => {
+      const point = rawProject(x, y, z, rotateModel);
       return {
         x: screenOffsetX + point.x * scale,
         y: screenOffsetY + point.y * scale,
@@ -82,10 +87,10 @@ export function createScenePreview(canvas) {
     const gridY1 = modelBounds.maxY + 4;
     context.fillStyle = palette.plane;
     drawPolygon(context, [
-      project(gridX0, gridY0, 0),
-      project(gridX1, gridY0, 0),
-      project(gridX1, gridY1, 0),
-      project(gridX0, gridY1, 0),
+      project(gridX0, gridY0, 0, false),
+      project(gridX1, gridY0, 0, false),
+      project(gridX1, gridY1, 0, false),
+      project(gridX0, gridY1, 0, false),
     ]);
     context.fill();
     context.strokeStyle = palette.grid;
@@ -93,10 +98,10 @@ export function createScenePreview(canvas) {
     const gridStep = Math.max(2, Math.ceil(Math.max(gridX1 - gridX0, gridY1 - gridY0) / 24 / 2) * 2);
     context.beginPath();
     for (let x = Math.ceil(gridX0 / gridStep) * gridStep; x <= gridX1; x += gridStep) {
-      drawLine(context, project(x, gridY0, 0), project(x, gridY1, 0));
+      drawLine(context, project(x, gridY0, 0, false), project(x, gridY1, 0, false));
     }
     for (let y = Math.ceil(gridY0 / gridStep) * gridStep; y <= gridY1; y += gridStep) {
-      drawLine(context, project(gridX0, y, 0), project(gridX1, y, 0));
+      drawLine(context, project(gridX0, y, 0, false), project(gridX1, y, 0, false));
     }
     context.stroke();
 

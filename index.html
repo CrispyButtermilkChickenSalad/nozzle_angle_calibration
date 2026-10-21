@@ -13,7 +13,7 @@
       <section class="intro">
         <div>
           <h1>Nozzle angle<br><span>calibration test.</span></h1>
-          <p class="intro-copy">Set one nozzle tilt, then generate a test matrix comparing flow percentages and layer heights. Each flow value becomes a row; each layer height becomes a column.</p>
+          <p class="intro-copy">Set a nozzle tilt and bead-relative orientation, then generate a test matrix comparing flow percentages and layer heights. Each flow value becomes a row; each layer height becomes a column.</p>
         </div>
         <button id="theme-toggle" class="theme-toggle" type="button" aria-pressed="false">Use dark mode</button>
       </section>
@@ -32,10 +32,11 @@
             <fieldset>
               <legend><span class="legend-number">1</span> Nozzle tilt <span class="legend-unit">SINGLE TARGET / DEGREES</span></legend>
               <div class="field-grid">
-                <label>Nozzle tilt from vertical
-                  <span class="input-wrap"><input name="angleDegrees" type="number" min="0" max="89" step="any" value="45" required><span>°</span></span>
+                <label>Nozzle tilt from vertical <span class="optional-label">SIGNED / −89° TO +89°</span>
+                  <span class="input-wrap"><input name="angleDegrees" type="number" min="-89" max="89" step="any" value="45" required><span>°</span></span>
                 </label>
               </div>
+              <p class="field-help">Positive and negative values tilt in opposite directions about the selected rotary axis. The orientation setting is preserved by automatically rotating the matrix 180° when the tilt sign is negative. At 0°, the nozzle is upright and orientation has no effect.</p>
             </fieldset>
 
             <fieldset>
@@ -94,8 +95,108 @@
               <p id="height-clearance-help" class="field-help">Layer heights accept 0.01 mm increments. Minimum safe height uses physical nozzle-tip diameter; maximum is 1.5 × nozzle-hole diameter.</p>
             </fieldset>
 
-            <fieldset class="last-fieldset">
-              <legend><span class="legend-number">5</span> Printer &amp; bed <span class="legend-unit">MM UNLESS NOTED</span></legend>
+            <fieldset>
+              <legend><span class="legend-number">5</span> Nozzle orientation <span class="legend-unit">RELATIVE TO BEAD DIRECTION</span></legend>
+              <div class="field-grid">
+                <label>Test matrix orientation
+                  <span class="input-wrap input-wrap-select">
+                    <select name="nozzleOrientation" aria-describedby="orientation-help">
+                      <option value="trailing" selected>Trailing edge</option>
+                      <option value="leading">Leading edge</option>
+                      <option value="adjacent">Adjacent</option>
+                      <option value="hybrid-trailing">Hybrid: trailing / adjacent</option>
+                      <option value="hybrid-leading">Hybrid: leading / adjacent</option>
+                    </select>
+                  </span>
+                </label>
+              </div>
+              <div class="orientation-gallery" role="list" aria-label="Nozzle orientation diagrams">
+                <figure class="orientation-card" role="listitem">
+                  <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="trailing-title trailing-description">
+                    <title id="trailing-title">Trailing-edge orientation</title>
+                    <desc id="trailing-description">The nozzle leans away from the deposited bead, opposite the direction in which the bead path is laid.</desc>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(90)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
+                  </svg>
+                  <figcaption><strong>Trailing edge</strong><span>Leans away from the bead already laid down.</span></figcaption>
+                </figure>
+                <figure class="orientation-card" role="listitem">
+                  <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="leading-title leading-description">
+                    <title id="leading-title">Leading-edge orientation</title>
+                    <desc id="leading-description">The nozzle leans toward the deposited bead, opposite the bead path direction.</desc>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(-90)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
+                  </svg>
+                  <figcaption><strong>Leading edge</strong><span>Leans toward the deposited bead; useful for acute or complex geometry.</span></figcaption>
+                </figure>
+                <figure class="orientation-card" role="listitem">
+                  <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="adjacent-title adjacent-description">
+                    <title id="adjacent-title">Adjacent orientation</title>
+                    <desc id="adjacent-description">The nozzle leans perpendicular to the bead path for clearance around printed features.</desc>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
+                  </svg>
+                  <figcaption><strong>Adjacent</strong><span>Leans 90° to the bead path for feature clearance.</span></figcaption>
+                </figure>
+                <figure class="orientation-card" role="listitem">
+                  <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="hybrid-trailing-title hybrid-trailing-description">
+                    <title id="hybrid-trailing-title">Hybrid trailing and adjacent orientation</title>
+                    <desc id="hybrid-trailing-description">The nozzle lean is halfway between trailing edge and perpendicular to the bead path.</desc>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(45)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
+                  </svg>
+                  <figcaption><strong>Hybrid: trailing / adjacent</strong><span>Halfway between trailing and adjacent.</span></figcaption>
+                </figure>
+                <figure class="orientation-card" role="listitem">
+                  <svg class="orientation-illustration" viewBox="0 0 180 106" role="img" aria-labelledby="hybrid-leading-title hybrid-leading-description">
+                    <title id="hybrid-leading-title">Hybrid leading and adjacent orientation</title>
+                    <desc id="hybrid-leading-description">The nozzle lean is halfway between leading edge and perpendicular to the bead path.</desc>
+                    <path class="diagram-bead" d="M20 72H76"/>
+                    <g class="diagram-nozzle" transform="translate(76 72) rotate(-45)">
+                      <path class="diagram-nozzle-body" d="M-3 0 3 0 5-8 8-13 8-38Q8-41 5-41H-5Q-8-41-8-38V-13L-5-8Z"/>
+                      <path class="diagram-nozzle-detail" d="M0-14V-35"/>
+                      <circle class="diagram-nozzle-tip" cy="1" r="2"/>
+                    </g>
+                    <path class="diagram-flow" d="M82 94h57l-8-5m8 5-8 5"/>
+                    <text class="diagram-label" x="20" y="62">DEPOSITED BEAD</text>
+                    <text class="diagram-label" x="105" y="109">BEAD PATH</text>
+                  </svg>
+                  <figcaption><strong>Hybrid: leading / adjacent</strong><span>Halfway between leading and adjacent.</span></figcaption>
+                </figure>
+              </div>
+              <p id="orientation-help" class="field-help">Trailing edge tilts away from the deposited bead for simpler printing and fewer collisions. Leading edge tilts toward the bead for complex geometry and acute angles, but can affect print quality and mechanical performance. Adjacent tilts 90° to the bead for feature clearance. Hybrid options place the matrix halfway between the corresponding edge and adjacent orientations. The complete matrix rotates to align with the selected firmware rotary axis. Verify axis direction and orientation on your printer before printing.</p>
+            </fieldset>
+
+            <fieldset>
+              <legend><span class="legend-number">6</span> Printer &amp; bed <span class="legend-unit">MM UNLESS NOTED</span></legend>
               <div class="field-grid two-up">
                 <label>Firmware
                   <span class="input-wrap input-wrap-select">
@@ -161,7 +262,7 @@
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">6</span> Retraction &amp; Z-hop <span class="legend-unit">MM / MM/S</span></legend>
+              <legend><span class="legend-number">7</span> Retraction &amp; Z-hop <span class="legend-unit">MM / MM/S</span></legend>
               <div class="field-grid three-up">
                 <label>Retract distance
                   <span class="input-wrap"><input name="retractDistance" type="number" min="0" max="20" step="0.1" value="0.5" required><span>mm</span></span>
@@ -185,7 +286,7 @@
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">7</span> First layer &amp; matrix base <span class="legend-unit">MM / MM/S</span></legend>
+              <legend><span class="legend-number">8</span> First layer &amp; matrix base <span class="legend-unit">MM / MM/S</span></legend>
               <div class="field-grid three-up">
                 <label>First layer height
                   <span class="input-wrap"><input name="firstLayerHeight" type="number" min="0.01" max="10" step="any" value="0.24" required><span>mm</span></span>
@@ -206,7 +307,7 @@
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">8</span> Print settings <span class="legend-unit">MM/S / °C</span></legend>
+              <legend><span class="legend-number">9</span> Print settings <span class="legend-unit">MM/S / °C</span></legend>
               <div class="field-grid three-up">
                 <label>Print speed
                   <span class="input-wrap"><input name="printSpeed" type="number" min="1" max="500" step="any" value="60" required><span>mm/s</span></span>
@@ -229,7 +330,7 @@
             </fieldset>
 
             <fieldset>
-              <legend><span class="legend-number">9</span> Pressure advance <span class="legend-unit">PRE-CALIBRATED / OPTIONAL OVERRIDE</span></legend>
+              <legend><span class="legend-number">10</span> Pressure advance <span class="legend-unit">PRE-CALIBRATED / OPTIONAL OVERRIDE</span></legend>
               <div class="field-grid two-up">
                 <label>Fixed pressure advance
                   <span class="input-wrap"><input name="pressureAdvance" type="number" min="0" max="10" step="0.01" value="0.04" required><span>firmware units</span></span>
@@ -242,8 +343,8 @@
               <p class="field-help">Pressure advance should be calibrated before this test. 0.04 is a starting default for direct drive. Firmware units differ; uncheck to retain the printer's configured value.</p>
             </fieldset>
 
-            <fieldset>
-              <legend><span class="legend-number">10</span> Start / end G-code <span class="legend-unit">OPTIONAL OVERRIDES</span></legend>
+            <fieldset class="last-fieldset">
+              <legend><span class="legend-number">11</span> Start / end G-code <span class="legend-unit">OPTIONAL OVERRIDES</span></legend>
               <div class="field-grid three-up">
                 <label class="check-label">
                   <input name="homeAxes" type="checkbox" checked>
