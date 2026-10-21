@@ -52,6 +52,11 @@ const defaults = {
   customEndGcode: "",
 };
 
+function emittedBedCoordinates(gcode) {
+  return [...gcode.matchAll(/\bX(-?\d+(?:\.\d+)?)\s+Y(-?\d+(?:\.\d+)?)/g)]
+    .map(([, x, y]) => [Number(x), Number(y)]);
+}
+
 test("calculates capsule area and nozzle-rim clearance from physical tip diameter", () => {
   const expectedArea = (0.4 - 0.2) * 0.2 + Math.PI * (0.2 / 2) ** 2;
   assert.ok(Math.abs(layerArea(0.2, 0.4) - expectedArea) < 1e-12);
@@ -97,6 +102,16 @@ test("orients the complete matrix and bead direction for each rotary axis", () =
     const length = Math.hypot(deltaX, deltaY);
     assert.ok(Math.abs(deltaX / length - directionX) < 1e-6, `${angleAxis} ${nozzleOrientation} bead X direction`);
     assert.ok(Math.abs(deltaY / length - directionY) < 1e-6, `${angleAxis} ${nozzleOrientation} bead Y direction`);
+    const coordinates = emittedBedCoordinates(result.text);
+    assert.ok(coordinates.length > 0);
+    assert.ok(coordinates.every(([x, y]) => x >= 0 && x <= defaults.bedSizeX
+      && y >= 0 && y <= defaults.bedSizeY), `${angleAxis} ${nozzleOrientation} stays within configured bed limits`);
+
+    const centered = generateGcode({ ...defaults, angleAxis, nozzleOrientation, originAtCenter: true });
+    const centeredCoordinates = emittedBedCoordinates(centered.text);
+    assert.ok(centeredCoordinates.every(([x, y]) => x >= -defaults.bedSizeX / 2 && x <= defaults.bedSizeX / 2
+      && y >= -defaults.bedSizeY / 2 && y <= defaults.bedSizeY / 2),
+      `${angleAxis} ${nozzleOrientation} stays within centered-origin bed limits`);
   }
 
   assert.throws(
@@ -126,6 +141,10 @@ test("orients the complete matrix and bead direction for each rotary axis", () =
   }));
   const implicitDefault = generateGcode({ ...defaults, nozzleOrientation: undefined });
   assert.equal(implicitDefault.preview.orientationLabel, "trailing edge");
+  assert.throws(
+    () => generateGcode({ ...defaults, bedSizeX: 50, bedSizeY: 50 }),
+    /does not fit the 50 × 50 mm rectangular bed/,
+  );
 });
 
 test("generates deterministic test order, readable labels, purge, and safe defaults", () => {
