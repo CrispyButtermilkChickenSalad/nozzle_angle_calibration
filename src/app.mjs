@@ -12,7 +12,7 @@ let generated = null;
 const scenePreview = createScenePreview(document.querySelector("#preview-scene"));
 
 const fields = [
-  "angleDegrees", "layerHeightStart", "layerHeightEnd", "layerHeightStep",
+  "angleDegrees", "nozzleOrientation", "layerHeightStart", "layerHeightEnd", "layerHeightStep",
   "layerCount", "nozzleTipDiameter", "nozzleHoleDiameter", "threeWallSpecimens",
   "flowStartPercent", "flowEndPercent", "flowStepPercent",
   "firmware", "bedShape", "filamentDiameter", "angleAxis",
@@ -43,18 +43,20 @@ function renderPreview(result) {
   scenePreview.update(result.preview);
   const spacingStatus = result.preview.labelMetrics.readable ? "legibility spacing passes" : "legibility spacing is tight";
   document.querySelector("#preview-help").textContent =
-    `Height columns run left-to-right along +X; flow rises from minimum at +Y to maximum toward -Y. Labels are ${result.preview.labelMetrics.glyphHeight.toFixed(1)} mm high with ${result.preview.labelMetrics.gapClearance.toFixed(2)} mm inter-character clearance (${spacingStatus}). Drag to orbit, scroll to zoom, use arrows and +/-; press 0 to reset.`;
+    `${result.preview.orientationLabel}; the matrix is rotated ${result.preview.rotationDegrees}° for rotary axis ${result.preview.angleAxis}. Labels are ${result.preview.labelMetrics.glyphHeight.toFixed(1)} mm high with ${result.preview.labelMetrics.gapClearance.toFixed(2)} mm inter-character clearance (${spacingStatus}). Drag to orbit, scroll to zoom, use arrows and +/-; press 0 to reset.`;
   rowCount.textContent = `${result.rowCount} × ${result.columnCount} MATRIX`;
   const toolbar = document.querySelector("#layout-summary");
-  toolbar.textContent = `${result.bed.shape.toUpperCase()} BED · ${result.rowCount} FLOW ROWS × ${result.columnCount} HEIGHT COLUMNS · ${result.wallCount} WALL${result.wallCount === 1 ? "" : "S"} PER SPECIMEN · ${result.preview.purge.length.toFixed(1)} MM DOUBLE-PASS PURGE · ${result.dimensions.width.toFixed(1)} × ${result.dimensions.height.toFixed(1)} MM · CENTERED AT ${result.bed.centerX.toFixed(1)}, ${result.bed.centerY.toFixed(1)}`;
+  toolbar.textContent = `${result.bed.shape.toUpperCase()} BED · ${result.preview.orientationLabel.toUpperCase()} · ${result.rowCount} FLOW ROWS × ${result.columnCount} HEIGHT COLUMNS · ${result.wallCount} WALL${result.wallCount === 1 ? "" : "S"} PER SPECIMEN · ${result.preview.purge.length.toFixed(1)} MM DOUBLE-PASS PURGE · ${result.dimensions.width.toFixed(1)} × ${result.dimensions.height.toFixed(1)} MM · CENTERED AT ${result.bed.centerX.toFixed(1)}, ${result.bed.centerY.toFixed(1)}`;
   document.querySelector("#preview-code").textContent = result.text;
   statusBadge.textContent = "PATTERN READY";
   statusBadge.classList.add("is-ready");
 }
 
 const bedShape = form.elements.namedItem("bedShape");
+const angleAxis = form.elements.namedItem("angleAxis");
 const bedY = form.elements.namedItem("bedSizeY");
 const bedYLabel = bedY.closest("label");
+const orientationHelp = document.querySelector("#orientation-help");
 const layerHeightStart = form.elements.namedItem("layerHeightStart");
 const layerHeightEnd = form.elements.namedItem("layerHeightEnd");
 const firstLayerHeight = form.elements.namedItem("firstLayerHeight");
@@ -95,6 +97,7 @@ function updateConditionalFields() {
   const circular = bedShape.value === "circular";
   bedY.disabled = circular;
   bedYLabel.classList.toggle("is-disabled", circular);
+  orientationHelp.textContent = `Trailing edge tilts away from the deposited bead for simpler printing and fewer collisions. Leading edge tilts toward the bead for complex geometry and acute angles, but can affect print quality and mechanical performance. Adjacent tilts 90° to the bead for feature clearance. Hybrid options place the matrix halfway between the corresponding edge and adjacent orientations. The complete matrix rotates to align with the selected firmware rotary axis. Verify axis direction and orientation on your printer before printing.${angleAxis.value === "C" ? " C rotates about Z and cannot physically tilt a nozzle; use A or B for a real tilt axis." : ""}`;
   form.elements.namedItem("customStartGcode").disabled = !form.elements.namedItem("useCustomStartGcode").checked;
   form.elements.namedItem("customEndGcode").disabled = !form.elements.namedItem("useCustomEndGcode").checked;
   customStart.closest(".textarea-label").classList.toggle("is-disabled", customStart.disabled);

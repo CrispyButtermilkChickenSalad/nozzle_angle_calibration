@@ -4,6 +4,7 @@ import { generateGcode, layerArea, minimumLayerHeight } from "../src/gcode.mjs";
 
 const defaults = {
   angleDegrees: 45,
+  nozzleOrientation: "trailing",
   layerHeightStart: 0.15,
   layerHeightEnd: 0.25,
   layerHeightStep: 0.05,
@@ -68,6 +69,63 @@ test("calculates capsule area and nozzle-rim clearance from physical tip diamete
   assert.equal(independentDiameters.preview.nozzleTipDiameter, 0.8);
   assert.equal(independentDiameters.preview.nozzleHoleDiameter, 0.2);
   assert.match(independentDiameters.text, /Collision-safe minimum height at this angle: 0\.282843 mm; physical nozzle tip diameter 0\.8 mm/);
+});
+
+test("orients the complete matrix and bead direction for each rotary axis", () => {
+  const cases = [
+    ["A", "trailing", 90, 0, 1],
+    ["A", "leading", 270, 0, -1],
+    ["A", "adjacent", 0, 1, 0],
+    ["A", "hybrid-trailing", 45, Math.SQRT1_2, Math.SQRT1_2],
+    ["A", "hybrid-leading", 315, Math.SQRT1_2, -Math.SQRT1_2],
+    ["B", "trailing", 180, -1, 0],
+    ["B", "leading", 0, 1, 0],
+    ["B", "adjacent", 90, 0, 1],
+    ["B", "hybrid-trailing", 135, -Math.SQRT1_2, Math.SQRT1_2],
+    ["B", "hybrid-leading", 45, Math.SQRT1_2, Math.SQRT1_2],
+  ];
+
+  for (const [angleAxis, nozzleOrientation, rotationDegrees, directionX, directionY] of cases) {
+    const result = generateGcode({ ...defaults, angleAxis, nozzleOrientation });
+    assert.equal(result.preview.rotationDegrees, rotationDegrees, `${angleAxis} ${nozzleOrientation} matrix rotation`);
+    assert.match(result.text, new RegExp(`G1 ${angleAxis}45 F6000`));
+    const firstCell = result.text.split("; CELL |")[1];
+    const [, startX, startY] = firstCell.match(/G0 X([\d.-]+) Y([\d.-]+) F6000/);
+    const [, endX, endY] = firstCell.match(/G1 X([\d.-]+) Y([\d.-]+) E[\d.]+ F\d+/);
+    const deltaX = Number(endX) - Number(startX);
+    const deltaY = Number(endY) - Number(startY);
+    const length = Math.hypot(deltaX, deltaY);
+    assert.ok(Math.abs(deltaX / length - directionX) < 1e-6, `${angleAxis} ${nozzleOrientation} bead X direction`);
+    assert.ok(Math.abs(deltaY / length - directionY) < 1e-6, `${angleAxis} ${nozzleOrientation} bead Y direction`);
+  }
+
+  assert.throws(
+    () => generateGcode({ ...defaults, nozzleOrientation: "unknown" }),
+    /Choose trailing edge, leading edge, adjacent, or a hybrid nozzle orientation/,
+  );
+
+  const aligned = generateGcode({ ...defaults, nozzleOrientation: "adjacent" });
+  const bedSizeX = Math.max(50, Math.ceil(aligned.dimensions.width + 1));
+  const bedSizeY = Math.max(50, Math.ceil(aligned.dimensions.height + 1));
+  assert.doesNotThrow(() => generateGcode({
+    ...defaults,
+    nozzleOrientation: "adjacent",
+    bedSizeX,
+    bedSizeY,
+  }));
+  assert.throws(() => generateGcode({
+    ...defaults,
+    nozzleOrientation: "trailing",
+    bedSizeX,
+    bedSizeY,
+  }), /does not fit the .* rectangular bed/);
+  assert.doesNotThrow(() => generateGcode({
+    ...defaults,
+    bedSizeX: bedSizeY,
+    bedSizeY: bedSizeX,
+  }));
+  const implicitDefault = generateGcode({ ...defaults, nozzleOrientation: undefined });
+  assert.equal(implicitDefault.preview.orientationLabel, "trailing edge");
 });
 
 test("generates deterministic test order, readable labels, purge, and safe defaults", () => {
@@ -139,7 +197,9 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.doesNotMatch(result.text, /SPECIMEN \d|First-layer anchor frame|perimeter/);
   assert.equal((result.text.match(/; CELL \|/g) ?? []).length, 15);
   assert.equal((result.text.match(/G1 A45/g) ?? []).length, 45);
-  assert.match(result.text, /height columns increase left-to-right \(\+X\); minimum flow is at \+Y, increasing flow runs toward -Y/);
+  assert.match(result.text, /Bed orientation: trailing edge; matrix rotated 90° about the bed center for rotary axis A/);
+  assert.equal(result.preview.rotationDegrees, 90);
+  assert.equal(result.preview.orientationLabel, "trailing edge");
   assert.match(result.text, /Collision-safe minimum height at this angle: 0\.141421 mm; physical nozzle tip diameter 0\.4 mm/);
   const angleLabelBlock = result.text.split("; angle label 45°\n")[1].split("; height label")[0];
   const markerMoves = angleLabelBlock.split("\n");
@@ -299,11 +359,13 @@ test("emits firmware-specific pressure advance and printer commands", () => {
     ...defaults,
     firmware: "reprap",
     angleAxis: "C",
+    nozzleOrientation: "adjacent",
     acceleration: 3000,
     toolIndex: 1,
     pressureAdvance: 0.12,
   }).text;
   assert.match(reprap, /Selected rotary axis: C \(rotation about Z\)/);
+  assert.match(reprap, /C rotates about Z and cannot physically tilt the nozzle/);
   assert.match(reprap, /M204 P3000 T3000/);
   assert.match(reprap, /M572 D1 S0\.12/);
 
