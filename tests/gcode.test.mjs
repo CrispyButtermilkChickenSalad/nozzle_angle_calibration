@@ -464,21 +464,21 @@ test("emits firmware-specific pressure advance and printer commands", () => {
   assert.match(generic, /Set the fixed pressure-advance value using the command supported by this firmware/);
 });
 
-test("custom end G-code replaces the default hotend and bed shutdown", () => {
+test("custom end G-code replaces the default fan, hotend, and bed shutdown", () => {
   const custom = generateGcode({
     ...defaults,
     useCustomEndGcode: true,
     customEndGcode: "END_PRINT",
   }).text;
   assert.match(custom, /END_PRINT/);
-  assert.doesNotMatch(custom, /M104 S0 ; turn off hotend|M140 S0 ; turn off bed/);
+  assert.doesNotMatch(custom, /M107 ; turn off part cooling fan|M104 S0 ; turn off hotend|M140 S0 ; turn off bed/);
 
   const fallback = generateGcode({
     ...defaults,
     useCustomEndGcode: true,
     customEndGcode: "",
   }).text;
-  assert.match(fallback, /M104 S0 ; turn off hotend\nM140 S0 ; turn off bed/);
+  assert.match(fallback, /M107 ; turn off part cooling fan\nM104 S0 ; turn off hotend\nM140 S0 ; turn off bed/);
 });
 
 test("substitutes custom start tokens and honors optional startup commands", () => {

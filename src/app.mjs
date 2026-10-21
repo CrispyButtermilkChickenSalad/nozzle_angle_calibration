@@ -6,10 +6,23 @@ const rowCount = document.querySelector("#row-count");
 const statusBadge = document.querySelector("#status-badge");
 const errorMessage = document.querySelector("#form-error");
 const downloadButton = document.querySelector("#download-button");
-const outputName = document.querySelector("#output-name");
+const outputFilename = document.querySelector("#output-filename");
 const themeToggle = document.querySelector("#theme-toggle");
 let generated = null;
 const scenePreview = createScenePreview(document.querySelector("#preview-scene"));
+
+function getOutputFilename() {
+  const baseName = outputFilename.value.trim()
+    .replace(/\.gcode$/i, "")
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
+    .replace(/[. ]+$/g, "")
+    .trim();
+  const safeBaseName = baseName || "angle-calibration-matrix";
+  const validBaseName = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(safeBaseName)
+    ? `_${safeBaseName}`
+    : safeBaseName;
+  return `${validBaseName}.gcode`;
+}
 
 const fields = [
   "angleDegrees", "nozzleOrientation", "layerHeightStart", "layerHeightEnd", "layerHeightStep",
@@ -144,7 +157,6 @@ form.addEventListener("submit", (event) => {
     generated = generateGcode(readConfig());
     renderPreview(generated);
     downloadButton.disabled = false;
-    outputName.textContent = "angle-calibration-matrix.gcode";
   } catch (error) {
     generated = null;
     downloadButton.disabled = true;
@@ -161,7 +173,7 @@ downloadButton.addEventListener("click", () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "angle-calibration-matrix.gcode";
+  link.download = getOutputFilename();
   link.click();
   URL.revokeObjectURL(url);
 });

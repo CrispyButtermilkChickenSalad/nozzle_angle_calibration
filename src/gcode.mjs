@@ -599,7 +599,8 @@ export function generateGcode(config) {
     lines.push("; Custom end G-code");
     lines.push(gcodeBlock(config.customEndGcode, { bedTemperature, hotendTemperature, toolIndex, extruderName }));
   } else {
-    lines.push("; Default shutdown: turn off hotend and bed");
+    lines.push("; Default shutdown: turn off part cooling fan, hotend, and bed");
+    lines.push("M107 ; turn off part cooling fan");
     lines.push("M104 S0 ; turn off hotend");
     lines.push("M140 S0 ; turn off bed");
   }
