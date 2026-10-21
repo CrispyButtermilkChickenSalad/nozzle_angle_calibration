@@ -422,8 +422,12 @@
           </div>
           <div class="download-row">
             <div>
-              <span class="download-label">OUTPUT FILE</span>
-              <strong id="output-name">angle-calibration-matrix.gcode</strong>
+              <label class="download-label" for="output-filename">OUTPUT FILENAME</label>
+              <span class="filename-control">
+                <input id="output-filename" type="text" value="angle-calibration-matrix" maxlength="80" autocomplete="off" aria-describedby="filename-help">
+                <span>.gcode</span>
+              </span>
+              <p id="filename-help" class="filename-help">Download as <strong id="output-name">angle-calibration-matrix.gcode</strong></p>
             </div>
             <button id="download-button" class="download-button" type="button" disabled>
               <span aria-hidden="true">↓</span> Download G-code
