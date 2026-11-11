@@ -35,7 +35,10 @@ export function createScenePreview(canvas) {
     const baseBounds = layout.bounds;
     const centerX = (modelBounds.minX + modelBounds.maxX) / 2;
     const centerY = (modelBounds.minY + modelBounds.maxY) / 2;
-    const topZ = layout.firstLayerHeight + layout.layerCount * Math.max(...layout.columns.map((column) => column.height));
+    const topZ = layout.firstLayerHeight + Math.max(
+      layout.tagHeight,
+      layout.layerCount * Math.max(...layout.columns.map((column) => column.height)),
+    );
     const rotation = (layout.rotationDegrees ?? 0) * Math.PI / 180;
     const cosRotation = Math.cos(rotation);
     const sinRotation = Math.sin(rotation);

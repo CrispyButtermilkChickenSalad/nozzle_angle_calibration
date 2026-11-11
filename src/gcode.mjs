@@ -124,8 +124,8 @@ function createCases(config, clearance, nozzleHoleDiameter) {
 
   if (Math.abs(angle) > 89) throw new Error("Nozzle angle must be between -89 and +89 degrees.");
   for (const height of heights) {
-    if (height + EPSILON < clearance) {
-      throw new Error(`Minimum layer height ${format(height)} mm is below the collision-safe minimum ${format(clearance)} mm at ${format(angle, 1)}° tilt.`);
+    if (height + EPSILON < clearance && config.allowUnsafeLayerHeight !== true) {
+      throw new Error(`Minimum layer height ${format(height)} mm is below the collision-safe minimum ${format(clearance)} mm at ${format(angle, 1)}° tilt. Explicit confirmation of collision risk is required.`);
     }
   }
   if (!Number.isInteger(layerCount) || layerCount < 1 || layerCount > MAX_LAYERS_PER_SPECIMEN) {
@@ -377,7 +377,7 @@ export function generateGcode(config) {
     );
     return { x: format(rotated.x), y: format(rotated.y) };
   };
-  const tagHeight = heights[0];
+  const tagHeight = firstLayerHeight;
   const labelGapClearance = Math.min(...[angleLabel, ...flowLabels, ...layerLabels].map((label) => label.gapClearance));
   const lines = [
     "; Nozzle angle calibration test matrix",
@@ -393,6 +393,9 @@ export function generateGcode(config) {
     `; Flow labels are percentages: ${format(flows[0], 3)}% to ${format(flows.at(-1), 3)}% in ${format(numeric(config.flowStepPercent, "Flow increment"), 3)}% increments.`,
     `; Layer-height labels are millimeters: ${format(heights[0])} to ${format(heights.at(-1))} mm in ${format(numeric(config.layerHeightStep, "Layer-height increment"))} mm increments; maximum is 1.5 × nozzle-hole diameter.`,
     `; Collision-safe minimum height at this angle: ${format(clearance, 6)} mm; physical nozzle tip diameter ${format(nozzleTipDiameter)} mm.`,
+    ...(heights[0] + EPSILON < clearance
+      ? ["; WARNING: User confirmed layer heights below the collision-safe minimum. Tilted nozzle may collide with the base or printed material."]
+      : []),
     `; Nozzle outlet diameter ${format(nozzleHoleDiameter)} mm sets test-line extrusion width and Slic3r wall spacing.`,
     `; Specimen walls: ${wallCount}; Slic3r centerline spacing varies by layer height; nominal extrusion width ${format(nozzleHoleDiameter)} mm.`,
     `; One solid first-layer base connects the matrix labels and all test lines. No individual skirts are printed.`,

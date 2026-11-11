@@ -92,7 +92,7 @@
                   <span class="input-wrap"><input name="layerHeightStep" type="number" min="0.01" max="10" step="0.01" value="0.05" required><span>mm</span></span>
                 </label>
               </div>
-              <p id="height-clearance-help" class="field-help">Layer heights accept 0.01 mm increments. Minimum safe height uses physical nozzle-tip diameter; maximum is 1.5 × nozzle-hole diameter.</p>
+              <p id="height-clearance-help" class="field-help">Layer heights accept 0.01 mm increments. Minimum safe height uses physical nozzle-tip diameter; lower heights require explicit confirmation of collision risk. Maximum is 1.5 × nozzle-hole diameter.</p>
             </fieldset>
 
             <fieldset>
@@ -416,8 +416,8 @@
           <div class="safety-card">
             <span class="safety-icon" aria-hidden="true">⌖</span>
             <div>
-              <strong>Collision-safe layer-height range.</strong>
-              <p>Every matrix column is checked against the minimum nozzle-rim clearance for the selected tilt. The solid base is printed flat beneath all labels and test lines.</p>
+              <strong>Nozzle-rim clearance check.</strong>
+              <p>Every matrix column is checked against the minimum nozzle-rim clearance for the selected tilt. Heights below that minimum require explicit confirmation of collision risk. The solid base is printed flat beneath all labels and test lines; raised label thickness matches the first-layer height.</p>
             </div>
           </div>
           <div class="download-row">

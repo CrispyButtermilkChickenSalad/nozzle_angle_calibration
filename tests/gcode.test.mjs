@@ -234,7 +234,7 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.equal(result.preview.wallCount, 1);
   assert.equal(result.preview.angleAxis, "A");
   assert.equal(result.preview.firstLayerHeight, defaults.firstLayerHeight);
-  assert.equal(result.preview.tagHeight, defaults.layerHeightStart);
+  assert.equal(result.preview.tagHeight, defaults.firstLayerHeight);
   assert.ok(result.preview.labelMetrics.glyphHeight >= 10 * defaults.nozzleHoleDiameter);
   assert.ok(result.preview.labelMetrics.gapClearance >= defaults.nozzleHoleDiameter * 0.5);
   assert.equal(result.preview.labelMetrics.readable, true);
@@ -324,6 +324,52 @@ test("prints the solid matrix base as one alternating snake", () => {
   assert.equal((baseBlock.match(/; retract$/gm) ?? []).length, 1);
   assert.equal((baseBlock.match(/; unretract$/gm) ?? []).length, 1);
   assert.equal((baseBlock.match(/^G0 X/mg) ?? []).length, 1);
+});
+
+test("raised labels use first-layer thickness for Z and extrusion, independent of specimen height", () => {
+  for (const firstLayerHeight of [0.12, 0.3]) {
+    const result = generateGcode({ ...defaults, firstLayerHeight });
+    assert.equal(result.preview.tagHeight, firstLayerHeight);
+    for (const tag of result.preview.tags) {
+      const block = result.text.split(`; ${tag.kind} label ${tag.text}${tag.kind === "flow" ? "%" : tag.kind === "height" ? " mm" : ""}\n`)[1]
+        .split(/\n; (?:angle|height|flow) label |\n; TEST MATRIX/)[0];
+      const z = [...block.matchAll(/^G0 Z([\d.]+)$/gm)].map(([, value]) => Number(value));
+      assert.deepEqual(z, [firstLayerHeight * 2]);
+      const extrusions = [...block.matchAll(/^G1 X.* E([\d.]+) F\d+$/gm)].map(([, value]) => Number(value));
+      tag.paths.forEach(([start, end], index) => {
+        const distance = Math.hypot(end[0] - start[0], end[1] - start[1]);
+        const expected = layerArea(firstLayerHeight, defaults.nozzleHoleDiameter) * distance
+          / (Math.PI * (defaults.filamentDiameter / 2) ** 2);
+        assert.ok(Math.abs(extrusions[index] - expected) < 1e-8);
+      });
+    }
+  }
+});
+
+test("below-clearance layers require explicit confirmation and retain other limits", () => {
+  for (const angleDegrees of [45, -45]) {
+    const config = { ...defaults, angleDegrees, layerHeightStart: 0.1 };
+    for (const allowUnsafeLayerHeight of [undefined, false, "true", 1]) {
+      assert.throws(
+        () => generateGcode({ ...config, allowUnsafeLayerHeight }),
+        /Explicit confirmation of collision risk is required/,
+      );
+    }
+    const result = generateGcode({ ...config, allowUnsafeLayerHeight: true });
+    assert.equal(result.preview.columns[0].height, 0.1);
+    assert.match(result.text, /WARNING: User confirmed layer heights below the collision-safe minimum/);
+    assert.match(result.text, /; CELL .* layer 0\.1 mm/);
+  }
+  assert.doesNotMatch(generateGcode(defaults).text, /WARNING: User confirmed/);
+  assert.doesNotMatch(generateGcode({ ...defaults, angleDegrees: 0, layerHeightStart: 0.01 }).text, /WARNING: User confirmed/);
+  for (const overrides of [
+    { layerHeightStart: 0 },
+    { layerHeightEnd: 0.61 },
+    { firstLayerHeight: 0.61 },
+    { layerHeightStart: 0.3, layerHeightEnd: 0.2 },
+  ]) {
+    assert.throws(() => generateGcode({ ...defaults, ...overrides, allowUnsafeLayerHeight: true }));
+  }
 });
 
 test("uses the configured Z-hop without changing the extruder coordinate mode", () => {

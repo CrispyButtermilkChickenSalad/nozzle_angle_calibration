@@ -89,16 +89,14 @@ function updateHeightConstraints() {
   try {
     const minimum = minimumLayerHeight(tipDiameter, angle);
     const maximum = Number((holeDiameter * 1.5).toFixed(6));
-    const safeMinimum = Math.max(0.01, minimum);
     const start = Number(layerHeightStart.value);
-    const end = Number(layerHeightEnd.value);
     layerHeightStart.max = String(maximum);
     layerHeightEnd.max = String(maximum);
     firstLayerHeight.max = String(maximum);
-    layerHeightStart.setCustomValidity(start < safeMinimum ? `At ${angle}° tilt, layer height must be at least ${minimum.toFixed(3)} mm.` : "");
-    layerHeightEnd.setCustomValidity(end < safeMinimum ? `At ${angle}° tilt, layer height must be at least ${minimum.toFixed(3)} mm.` : "");
+    layerHeightStart.setCustomValidity("");
+    layerHeightEnd.setCustomValidity("");
     firstLayerHeight.setCustomValidity(Number(firstLayerHeight.value) > maximum ? `Base height cannot exceed 1.5 × nozzle-hole diameter (${maximum.toFixed(3)} mm).` : "");
-    helper.textContent = `Collision-safe minimum at ${angle}°: ${minimum.toFixed(6)} mm from the ${tipDiameter.toFixed(2)} mm physical tip. Maximum layer height: ${maximum.toFixed(2)} mm (1.5 × ${holeDiameter.toFixed(2)} mm nozzle hole).`;
+    helper.textContent = `Collision-safe minimum at ${angle}°: ${minimum.toFixed(6)} mm from the ${tipDiameter.toFixed(2)} mm physical tip. Maximum layer height: ${maximum.toFixed(2)} mm (1.5 × ${holeDiameter.toFixed(2)} mm nozzle hole).${start + 1e-9 < minimum ? " WARNING: Selected heights risk a tilted-nozzle collision. Generation requires explicit confirmation." : ""}`;
   } catch {
     layerHeightStart.setCustomValidity("");
     layerHeightEnd.setCustomValidity("");
@@ -154,7 +152,17 @@ form.addEventListener("submit", (event) => {
   errorMessage.hidden = true;
   errorMessage.textContent = "";
   try {
-    generated = generateGcode(readConfig());
+    const config = readConfig();
+    const minimum = minimumLayerHeight(config.nozzleTipDiameter, config.angleDegrees);
+    if (config.layerHeightStart + 1e-9 < minimum) {
+      config.allowUnsafeLayerHeight = window.confirm(
+        `WARNING: Minimum layer height ${config.layerHeightStart} mm is below the collision-safe minimum ${minimum.toFixed(6)} mm at ${config.angleDegrees}° tilt. The tilted nozzle may collide with the base or printed material and damage the printer. Generate anyway and accept this collision risk?`,
+      );
+      if (!config.allowUnsafeLayerHeight) {
+        throw new Error("Generation canceled: below-clearance layer heights require explicit confirmation of collision risk.");
+      }
+    }
+    generated = generateGcode(config);
     renderPreview(generated);
     downloadButton.disabled = false;
   } catch (error) {
