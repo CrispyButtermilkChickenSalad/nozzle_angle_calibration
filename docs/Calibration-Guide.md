@@ -57,7 +57,7 @@ The tip is approximated as a circular rim of radius `r = nozzle-tip diameter / 2
 h_min = sqrt(r^2 - (r cos(theta))^2) = r sin(theta)
 ```
 
-This formula constrains all matrix layer heights. It does not model the nozzle body, carriage, gantry, deposited adjacent specimens, or printer-specific pivot offsets. Real hardware can require a larger clearance. Test cautiously and inspect the generated G-code for the selected machine.
+By default, this formula constrains all matrix layer heights. Below-clearance heights can be generated only after accepting the collision-risk confirmation dialog; canceling leaves download disabled. Confirmation applies only to that generation, and any subsequent generation with below-clearance heights asks again. The generated G-code records a warning when this override is used. It does not bypass the 0.01 mm lower bound, maximum layer height, or other validation. Programmatic callers must explicitly set `allowUnsafeLayerHeight: true` to acknowledge the same risk. The formula does not model the nozzle body, carriage, gantry, deposited adjacent specimens, or printer-specific pivot offsets. Real hardware can require a larger clearance. Test cautiously and inspect the generated G-code for the selected machine.
 
 The maximum layer height is `1.5 × nozzle-hole diameter`. This is a configurable-range ceiling based on the requested extrusion limit; it is not a guarantee that every printer/material combination can produce a stable bead at that height.
 
@@ -94,7 +94,7 @@ References:
 
 ### Printed label visibility
 
-Labels use seven-segment toolpaths sized from nozzle-hole diameter. Their glyph height is `max(10 × nozzle-hole diameter, 3.2 mm)`. The minimum inter-character gap is `max(1.75 × nozzle-hole diameter, 0.5 mm)`, leaving at least half an outlet diameter of nominal clearance between character strokes. Flow labels are right-aligned. Matrix row pitch is at least the label height plus the nozzle-hole diameter plus 2 mm, or the maximum specimen width plus 3 mm, whichever is greater. The UI reports the generated glyph height and gap clearance. Layer-height fields accept hundredths of a millimeter (for example, 0.15 mm); the nozzle-collision minimum still applies. Increasing labels or spacing changes the required plate footprint; the complete label and purge footprint is included in bed-fit checks.
+Labels use seven-segment toolpaths sized from nozzle-hole diameter. Their raised layer thickness matches the configured first-layer height, independent of the specimen layer-height range; labels print at absolute Z `2 × first-layer height` on top of the solid base. Their glyph height is `max(10 × nozzle-hole diameter, 3.2 mm)`. The minimum inter-character gap is `max(1.75 × nozzle-hole diameter, 0.5 mm)`, leaving at least half an outlet diameter of nominal clearance between character strokes. Flow labels are right-aligned. Matrix row pitch is at least the label height plus the nozzle-hole diameter plus 2 mm, or the maximum specimen width plus 3 mm, whichever is greater. The UI reports the generated glyph height and gap clearance. Layer-height fields accept hundredths of a millimeter (for example, 0.15 mm); heights below the nozzle-collision minimum require explicit confirmation. Increasing labels or spacing changes the required plate footprint; the complete label and purge footprint is included in bed-fit checks.
 
 ## Printer setup and G-code
 
