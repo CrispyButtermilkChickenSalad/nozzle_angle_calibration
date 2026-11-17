@@ -37,6 +37,7 @@ const defaults = {
   baseLineWidthPercent: 150,
   threeWallSpecimens: false,
   printSpeed: 60,
+  travelSpeed: 120,
   acceleration: 0,
   fanSpeed: 50,
   hotendTemperature: 210,
@@ -95,9 +96,9 @@ test("orients the complete matrix and bead direction for each rotary axis", () =
   for (const [angleAxis, nozzleOrientation, rotationDegrees, directionX, directionY] of cases) {
     const result = generateGcode({ ...defaults, angleAxis, nozzleOrientation });
     assert.equal(result.preview.rotationDegrees, rotationDegrees, `${angleAxis} ${nozzleOrientation} matrix rotation`);
-    assert.match(result.text, new RegExp(`G1 ${angleAxis}45 F6000`));
+    assert.match(result.text, new RegExp(`G1 ${angleAxis}45 F${defaults.travelSpeed * 60}`));
     const firstCell = result.text.split("; CELL |")[1];
-    const [, startX, startY] = firstCell.match(/G0 X([\d.-]+) Y([\d.-]+) F6000/);
+    const [, startX, startY] = firstCell.match(new RegExp(`G0 X([\\d.-]+) Y([\\d.-]+) F${defaults.travelSpeed * 60}`));
     const [, endX, endY] = firstCell.match(/G1 X([\d.-]+) Y([\d.-]+) E[\d.]+ F\d+/);
     const deltaX = Number(endX) - Number(startX);
     const deltaY = Number(endY) - Number(startY);
@@ -155,7 +156,7 @@ test("rotates the matrix 180 degrees for negative tilt while preserving orientat
       const positive = generateGcode({ ...defaults, angleAxis, nozzleOrientation, angleDegrees: 45 });
       const negative = generateGcode({ ...defaults, angleAxis, nozzleOrientation, angleDegrees: -45 });
       assert.equal((negative.preview.rotationDegrees - positive.preview.rotationDegrees + 360) % 360, 180);
-      assert.match(negative.text, new RegExp(`G1 ${angleAxis}-45 F6000`));
+      assert.match(negative.text, new RegExp(`G1 ${angleAxis}-45 F${defaults.travelSpeed * 60}`));
       assert.match(negative.text, new RegExp(`; Nozzle tilt -45 degrees from vertical`));
       assert.match(negative.text, new RegExp(`Nozzle orientation: .*matrix heading ${negative.preview.rotationDegrees}°;`));
       assert.equal(negative.preview.orientationLabel, positive.preview.orientationLabel);
@@ -255,6 +256,7 @@ test("generates deterministic test order, readable labels, purge, and safe defau
   assert.match(result.text, /Flow labels are percentages: 90% to 110% in 5% increments/);
   assert.match(result.text, /Layer-height labels are millimeters: 0\.15 to 0\.25 mm in 0\.05 mm increments/);
   assert.match(result.text, /maximum is 1\.5 × nozzle-hole diameter/);
+  assert.match(result.text, /Travel feedrate 7200 mm\/min \(120 mm\/s\)/);
   assert.match(result.text, /One solid first-layer base connects the matrix labels and all test lines/);
   assert.match(result.text, /; DOUBLE-PASS PURGE \| [\d.]+ mm each way at 200% flow, separate from matrix base and samples/);
   assert.match(result.text, /reposition for return purge pass without extrusion/);
@@ -525,6 +527,17 @@ test("custom end G-code replaces the default fan, hotend, and bed shutdown", () 
     customEndGcode: "",
   }).text;
   assert.match(fallback, /M107 ; turn off part cooling fan\nM104 S0 ; turn off hotend\nM140 S0 ; turn off bed/);
+});
+
+test("uses configurable travel speed", () => {
+  const result = generateGcode({ ...defaults, travelSpeed: 150 }).text;
+  assert.match(result, /Travel feedrate 9000 mm\/min \(150 mm\/s\)/);
+  assert.match(result, /G0 Z[\d.]+ F9000 ; lift \/ Z-hop/);
+  assert.match(result, /G1 A45 F9000/);
+  assert.throws(
+    () => generateGcode({ ...defaults, travelSpeed: 0.5 }),
+    /Travel speed must be between 1 and 1000/,
+  );
 });
 
 test("substitutes custom start tokens and honors optional startup commands", () => {

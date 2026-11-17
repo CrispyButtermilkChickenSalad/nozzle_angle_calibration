@@ -100,7 +100,7 @@ Labels use seven-segment toolpaths sized from nozzle-hole diameter. Their raised
 
 - **Tilt/rotary axis:** angle is measured from vertical. The common convention is A about X, B about Y, and C about Z. Select the rotary axis actually configured by the firmware.
 - **Bed coordinates:** choose the bed shape and dimensions, origin convention, and optional explicit center. The entire model and purge line are centered as a group; generation fails if the footprint does not fit.
-- **Travel moves:** use a fixed 6000 mm/min travel feedrate. It is intentionally not user-configurable in this test tool.
+- **Travel moves:** set travel speed in mm/s; the default is 120 mm/s (2× the default 60 mm/s print speed). G-code uses this value as feedrate in mm/min.
 - **Z-hop:** the configured height is added above the higher of the current and destination print Z before travel, then the nozzle returns to the destination Z. The hop uses absolute Z coordinates so it does not change the firmware's extrusion coordinate mode.
 - **Purge:** two adjacent passes at first-layer height are printed immediately before the solid base. Each pass is as long as the matrix's longest dimension. Confirm there is space for it and that the printer's start macro leaves the nozzle ready to extrude.
 - **End G-code:** unless a non-empty custom end block is enabled, the generator emits `M107`, `M104 S0`, and `M140 S0` to turn off the part cooling fan, hotend, and bed. A custom end block replaces those defaults, so include shutdown commands there if desired.
