@@ -2,7 +2,6 @@ const MAX_RANGE_VALUES = 100;
 const MAX_TEST_CELLS = 100;
 const MAX_PRINTED_LAYERS = 500;
 const MAX_LAYERS_PER_SPECIMEN = 10;
-const TRAVEL_FEEDRATE = 6000;
 const EPSILON = 1e-9;
 
 export function layerArea(layerHeight, lineWidth) {
@@ -253,6 +252,8 @@ export function generateGcode(config) {
   const filamentDiameter = validateNumber(config.filamentDiameter, "Filament diameter", 0.5, 5);
   const beadLength = validateNumber(config.beadLength, "Bead length", 2, 100);
   const printSpeed = validateNumber(config.printSpeed, "Print speed", 1, 500);
+  const travelSpeed = validateNumber(config.travelSpeed, "Travel speed", 1, 1000);
+  const travelFeedrate = format(travelSpeed * 60, 0);
   const firstLayerSpeed = validateNumber(config.firstLayerSpeed, "First layer speed", 1, 500);
   const acceleration = validateNumber(config.acceleration, "Acceleration", 0, 50000);
   const fanSpeed = validateNumber(config.fanSpeed, "Fan speed", 0, 100);
@@ -400,7 +401,7 @@ export function generateGcode(config) {
     `; Seven-segment labels: ${format(angleLabel.height)} mm high; minimum inter-character clearance ${format(labelGapClearance)} mm.`,
     `; Bead area: A = (w-h)h + pi(h/2)^2. E uses area * distance * flow percentage / filament area.`,
     `; Adjacent center spacing = extrusion width - layer height * (1 - pi/4); walls overlap nominally to avoid gaps.`,
-    `; Travel feedrate fixed at ${TRAVEL_FEEDRATE} mm/min.`,
+    `; Travel feedrate ${travelFeedrate} mm/min (${format(travelSpeed, 3)} mm/s).`,
     `; Retract ${format(retractDistance)} mm at ${format(retractSpeed)} mm/s; Z-hop ${format(zHopHeight)} mm.`,
     `; Purge path length ${format(purgeLength)} mm per pass (${format(purgeLength * 2)} mm total), with a ${format(purgeRowSpacing)} mm return pass, printed before the base.`,
     `; Pressure advance ${config.usePressureAdvance ? `fixed at ${format(pressureAdvance)}` : "left to firmware configuration"}.`,
@@ -458,10 +459,10 @@ export function generateGcode(config) {
     }
     if (zHopHeight > 0) {
       const hopZ = Math.max(currentZ, z) + zHopHeight;
-      lines.push(`G0 Z${format(hopZ)} F${TRAVEL_FEEDRATE} ; lift / Z-hop`);
+      lines.push(`G0 Z${format(hopZ)} F${travelFeedrate} ; lift / Z-hop`);
     }
     const position = bedPosition(x, y);
-    lines.push(`G0 X${position.x} Y${position.y} F${TRAVEL_FEEDRATE}`);
+    lines.push(`G0 X${position.x} Y${position.y} F${travelFeedrate}`);
     lines.push(`G0 Z${format(z)}`);
     currentZ = z;
     if (hasExtruded && retractDistance > 0) {
@@ -470,7 +471,7 @@ export function generateGcode(config) {
     }
   };
   const extrudeSegment = (x1, y1, x2, y2, z, height, width, multiplier, feedrate, tilt) => {
-    lines.push(`G1 ${angleAxis}${format(tilt, 1)} F${TRAVEL_FEEDRATE}`);
+    lines.push(`G1 ${angleAxis}${format(tilt, 1)} F${travelFeedrate}`);
     const e = extrusionPerMm(height, width, multiplier, filamentDiameter) * Math.hypot(x2 - x1, y2 - y1);
     const position = bedPosition(x2, y2);
     lines.push(`G1 X${position.x} Y${position.y} E${format(e, 8)} F${format(feedrate * 60, 0)}`);
@@ -487,7 +488,7 @@ export function generateGcode(config) {
       if (index === 0) travelTo(start[0] + tag.x, start[1] + tag.y, z);
       else {
         const position = bedPosition(start[0] + tag.x, start[1] + tag.y);
-        lines.push(`G0 X${position.x} Y${position.y} F${TRAVEL_FEEDRATE} ; non-extruding move within this label`);
+        lines.push(`G0 X${position.x} Y${position.y} F${travelFeedrate} ; non-extruding move within this label`);
       }
       extrudeSegment(
         start[0] + tag.x, start[1] + tag.y, end[0] + tag.x, end[1] + tag.y,
@@ -500,7 +501,7 @@ export function generateGcode(config) {
   lines.push(`; DOUBLE-PASS PURGE | ${format(purgeLength)} mm each way at 200% flow, separate from matrix base and samples`);
   printSegment(purgeX, purgeY, purgeMaxX, purgeY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
   const purgeReturnPosition = bedPosition(purgeMaxX, purgeReturnY);
-  lines.push(`G0 X${purgeReturnPosition.x} Y${purgeReturnPosition.y} F${TRAVEL_FEEDRATE} ; reposition for return purge pass without extrusion`);
+  lines.push(`G0 X${purgeReturnPosition.x} Y${purgeReturnPosition.y} F${travelFeedrate} ; reposition for return purge pass without extrusion`);
   extrudeSegment(purgeMaxX, purgeReturnY, purgeX, purgeReturnY, firstLayerHeight, firstLayerHeight, nozzleHoleDiameter, 2, firstLayerSpeed, 0);
 
   lines.push("");

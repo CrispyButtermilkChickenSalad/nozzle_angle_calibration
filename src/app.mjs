@@ -34,7 +34,7 @@ const fields = [
   "retractDistance", "retractSpeed", "unretractSpeed", "zHopHeight", "firmwareRetraction",
   "firstLayerHeight", "firstLayerSpeed", "firstLayerFan", "baseLineWidthPercent",
   "pressureAdvance", "usePressureAdvance",
-  "printSpeed", "acceleration", "fanSpeed",
+  "printSpeed", "travelSpeed", "acceleration", "fanSpeed",
   "hotendTemperature", "bedTemperature", "homeAxes", "heatBed",
   "heatHotend", "useCustomStartGcode", "customStartGcode", "useCustomEndGcode",
   "customEndGcode",
